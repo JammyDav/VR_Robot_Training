@@ -1,0 +1,29 @@
+{
+  "name": "tx2-60-xr",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Scientific Solutions — TX2-60 plate-handling pendant training simulation (WebXR, Meta Quest 3)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "dev:desktop": "vite --mode desktop",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/kalam": "^5.3.0",
+    "@fontsource/space-mono": "^5.3.0",
+    "three": "^0.186.1",
+    "troika-three-text": "^0.52.5"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}

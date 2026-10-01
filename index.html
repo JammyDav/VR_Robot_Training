@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>TX2-60 Pendant Trainer · Scientific Solutions</title>
+    <style>
+      :root {
+        --cbre-green: #003f2d;
+        --accent-green: #17e88f;
+        --dark-grey: #435254;
+        --light-grey: #cad1d3;
+        --bg: #f2f2ef;
+      }
+      html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+      body { font-family: Inter, Tahoma, system-ui, sans-serif; color: var(--dark-grey); }
+      #app { position: fixed; inset: 0; }
+      #app canvas { display: block; outline: none; }
+      .topbar {
+        position: fixed; top: 16px; left: 16px; right: 16px; display: flex; align-items: center;
+        justify-content: space-between; gap: 12px; pointer-events: none;
+      }
+      .title { pointer-events: auto; background: rgba(255,255,255,.88); backdrop-filter: blur(6px);
+        border-left: 4px solid var(--cbre-green); padding: 8px 14px; border-radius: 2px; }
+      .title b { display: block; color: var(--cbre-green); font-weight: 600; font-size: 15px; }
+      .title span { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+      #enter-vr {
+        pointer-events: auto; font: 600 15px Inter, Tahoma, sans-serif; color: #fff; background: var(--cbre-green);
+        border: 0; padding: 12px 22px; border-radius: 2px; cursor: pointer; min-width: 140px;
+      }
+      #enter-vr:hover:not(:disabled) { box-shadow: inset 0 -3px 0 var(--accent-green); }
+      #enter-vr:disabled { background: #7f8480; cursor: default; }
+      #perf { position: fixed; left: 16px; bottom: 16px; font: 12px 'Space Mono', monospace; color: var(--cbre-green);
+        background: rgba(255,255,255,.85); padding: 4px 8px; border-radius: 2px; pointer-events: none; }
+      #hint { position: fixed; right: 16px; bottom: 16px; font-size: 12px; background: rgba(255,255,255,.85);
+        padding: 6px 10px; border-radius: 2px; max-width: 46ch; }
+      #loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg);
+        font-size: 14px; color: var(--cbre-green); transition: opacity .4s; }
+      @media (max-width: 640px) { #hint { display: none; } .title span { display: none; } }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div class="topbar">
+      <div class="title"><b>TX2-60 Pendant Trainer</b><span>Scientific Solutions</span></div>
+      <button id="enter-vr" disabled>Checking VR…</button>
+    </div>
+    <div id="perf"></div>
+    <div id="hint">Drag to orbit · right-drag to pan · scroll to zoom · <b>1–4</b> preset views · <b>P</b> performance readout</div>
+    <div id="loading">Preparing the lab…</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
