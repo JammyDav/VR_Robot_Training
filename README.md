@@ -4,6 +4,11 @@ A WebXR training simulation of a six-axis TX2-60-class arm moving SLAS-format mi
 
 > **Status: Stage 1 of 6.** Done so far: the lab, lighting, XR entry, the desktop camera and a performance readout. The robot, pendant, programming and challenges come in later stages.
 
+## Live build
+
+**https://jammydav.github.io/VR_Robot_Training/** — open in the Quest 3 browser and press **Enter VR**.
+Every push to `main` rebuilds and redeploys via GitHub Actions (`.github/workflows/deploy.yml`).
+
 ## Setup
 
 Requires Node 20+ (developed on Node 24).
