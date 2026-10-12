@@ -38,7 +38,14 @@
         font-size: 14px; color: var(--cbre-green); transition: opacity .4s; }
       #jog { position: fixed; right: 16px; top: 72px; width: 260px; background: rgba(255,255,255,.9);
         border-top: 3px solid var(--cbre-green); padding: 10px 12px; border-radius: 2px; font-size: 12px; }
-      .jog-head { font: 11px 'Space Mono', monospace; color: var(--cbre-green); margin-bottom: 8px; }
+      .st-top { display: flex; justify-content: space-between; font-weight: 600; color: var(--cbre-green); font-size: 13px; }
+      .st-jog { font: 11px 'Space Mono', monospace; color: var(--cbre-green); margin: 2px 0 6px; }
+      .st-enable { font-size: 12px; padding: 4px 6px; border-radius: 2px; margin-bottom: 6px; background: #f1e6e5; color: #8a2a24; }
+      .st-enable[data-state="enabled"] { background: #e3f3ea; color: #1d6b3d; }
+      .st-enable[data-state="panic"] { background: #fbefd8; color: #8a5a06; }
+      .st-alert { font-weight: 600; color: #fff; background: #c8201a; padding: 5px 6px; border-radius: 2px; margin-bottom: 6px; }
+      .st-pose { font: 11px 'Space Mono', monospace; white-space: pre; margin-top: 6px; }
+      .st-warn { font-size: 11px; color: #8a5a06; min-height: 14px; margin-top: 4px; }
       .jog-row { display: grid; grid-template-columns: 28px 1fr 58px; align-items: center; gap: 8px; padding: 3px 4px; }
       .jog-row.sel { background: #e8f0ed; box-shadow: inset 3px 0 0 var(--cbre-green); }
       .jog-row .ax { font-weight: 600; }
@@ -57,8 +64,9 @@
     </div>
     <div id="perf"></div>
     <div id="jog"></div>
-    <div id="hint"><b>↑ ↓</b> select joint · hold <b>← →</b> Move− / Move+ · <b>[ ]</b> speed · <b>G</b> gripper · <b>T</b> TCP triad<br>
-      Drag to orbit · right-drag to pan · scroll to zoom · <b>1–5</b> views · <b>P</b> performance</div>
+    <div id="hint"><b>Space</b> hold = enabling device (Shift+Space = panic) · <b>Tab</b> jog mode · <b>Q</b>+<b>↑↓</b> speed<br>
+      Joint: <b>W/S</b> axis, <b>← →</b> Move− / Move+ · Frame/Tool: <b>W/S A/D</b> X/Y, <b>↑↓</b> Z · <b>B</b> tap rotate, hold 1 s E-stop<br>
+      <b>G</b> gripper · <b>Esc</b> E-stop · <b>R</b> reset · <b>M</b> working mode · <b>T</b> TCP triad · <b>1–5</b> views · <b>P</b> perf</div>
     <div id="loading">Preparing the lab…</div>
     <script type="module" src="/src/main.ts"></script>
   </body>

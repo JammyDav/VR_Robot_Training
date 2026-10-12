@@ -2,7 +2,7 @@
 
 A WebXR training simulation of a six-axis TX2-60-class arm moving SLAS-format microplates from a dispenser nest to a plate-reader tray. It is built for the Meta Quest 3 browser and also works on a desktop with keyboard and mouse.
 
-> **Status: Stage 2 of 6.** Done so far: the lab, the robot (joint tree, forward kinematics, joint jogging) and the gripper. Cartesian jogging, the deadman and E-stop, the pendant, programming and the challenges come in later stages.
+> **Status: Stage 3 of 6.** Done so far: the lab, the robot, the gripper, the enabling device (deadman), Joint/Frame/Tool jogging with damped least-squares IK, the speed override and manual speed cap, E-stop with reset, and the beacon. The pendant panel, programming and challenges come in later stages.
 
 ## Live build
 
@@ -49,33 +49,33 @@ npm install
 - For authoritative numbers, use Meta's **OVR Metrics Tool** overlay (fps, GPU and CPU levels).
 - Targets: 72 fps minimum, 90 preferred, and under about 150 draw calls in the main view.
 
-## Controls (Stage 2, temporary)
+## Controls (Stage 3)
 
-These are stop-gap mappings until the pendant arrives in Stage 4. **There is no enabling device (deadman) yet**, so motion is not gated until Stage 3.
+The pendant panel arrives in Stage 4. Until then, panel actions such as working mode and reset have temporary shortcuts, marked † below. Every input path runs through the same pendant logic (`src/input/PendantLogic.ts`), so the keyboard behaves exactly like the controllers.
 
-### Desktop
+**All motion requires the enabling device**, held in its middle position. Releasing it stops the arm. Squeezing it fully is a panic stop that stays latched until you let go completely.
 
-| Input | Action |
-|---|---|
-| `↑` `↓` | Select joint |
-| Hold `←` / `→` | Move− / Move+ on the selected joint |
-| `[` `]` | Speed override down / up (1, 5, 10, 25, 50, 75, 100 %) |
-| `G` | Open or close the gripper |
-| `T` | Toggle the TCP triad |
-| `1`–`5` | Operator, overview, cell, boards and robot views |
-| Left-drag, right-drag, scroll | Orbit, pan, zoom |
-| `P` | Performance readout |
+| Function | Quest Touch Plus | Desktop |
+|---|---|---|
+| Enabling device (deadman) | Left grip, half squeeze | Hold **Space** (Shift+Space = panic squeeze) |
+| Cycle jog mode: Joint → Frame → Tool → Point | Left **X** | **Tab** |
+| Speed override (1/5/10/25/50/75/100 %) | Hold left **Y** + right stick ↕ | Hold **Q** + **↑ / ↓** |
+| Joint: select axis | Left stick ↕ | **W / S** |
+| Joint: Move− / Move+ | Right stick ↔ | **← / →** |
+| Frame/Tool: X / Y | Left stick ↕ / ↔ | **W/S** / **A/D** |
+| Frame/Tool: Z | Right stick ↕ | **↑ / ↓** |
+| Frame/Tool: toggle translate ↔ rotate (Rx Ry / Rz) | Right **B** tap | **B** tap |
+| Emergency stop | Hold right **B** for 1 s | Hold **B** for 1 s, or **Esc** |
+| Reset E-stop (enabling device released) | † Hold right **A** for 1 s | † **R** |
+| Gripper open / close (Manual) | Right trigger | **G** |
+| Cycle working mode: Manual → Manual test → Local | † (panel, Stage 4) | † **M** |
+| TCP triad | (panel, Stage 4) | **T** |
 
-### Quest controllers
+The Frame axes are the robot base frame. **+X** points away from you, **+Y** to your left, and **+Z** up. The Tool axes follow the gripper, with **+Z** along the approach direction.
 
-| Input | Action |
-|---|---|
-| Left thumbstick up / down | Select joint |
-| Right thumbstick left / right | Move− / Move+ |
-| Hold left **Y** + **right** thumbstick up / down | Speed override (no jogging while Y is held) |
-| Right **A** | Open or close the gripper |
+The Y button and the left thumbstick both sit under the left thumb, so the speed modifier pairs with the **right** stick. The brief said "left Y + thumbstick"; this is a deliberate change.
 
-A small readout of joint values is attached to the left controller.
+Beacon: **amber** = Manual or Manual test, **green** = Local, **red** (flashing) = E-stop or fault.
 
 ## Project layout
 
@@ -135,5 +135,8 @@ Primary source: Stäubli, *TX2-60 Range* product data sheet, **V17, © 02/2026**
 ### Known approximations
 
 - The visual model is procedural. Its proportions follow the kinematic dimensions, but the casting shapes are approximate.
-- Manual jogging runs at 10 % of each joint's maximum speed at 100 % override. The 250 mm/s manual TCP speed cap is enforced from Stage 3.
+- Joint jog runs at 10 % of each joint's maximum speed at 100 % override. In Manual, every joint is also held to 25 % of its maximum speed, and the TCP's linear speed is capped at **250 mm/s** (`MANUAL_TCP_CAP_MMPS`).
+- Frame and Tool jogging go up to 250 mm/s and 45 °/s at 100 % override.
+- IK is damped least squares on the 6×6 geometric Jacobian. Angular rows are scaled by 0.25 m. Damping rises as the manipulability √det(JJᵀ) drops below 1.2×10⁻⁴, which is J5 at about 15°, and jog speed is reduced in proportion. Jogging through J5 = 0 slows the arm and does not flip J4 or J6; this is covered by the tests.
+- Joints that reach a limit during Cartesian jogging are frozen out of the solve, so the TCP may leave the commanded line. The panel reports which joint is at its limit.
 - The gripper is a generic parallel-jaw plate gripper. Its TCP sits 128 mm from the flange face, at the centre between the fingertips.
