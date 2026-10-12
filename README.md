@@ -72,7 +72,7 @@ These are stop-gap mappings until the pendant arrives in Stage 4. **There is no 
 |---|---|
 | Left thumbstick up / down | Select joint |
 | Right thumbstick left / right | Move− / Move+ |
-| Hold left **Y** + left thumbstick up / down | Speed override |
+| Hold left **Y** + **right** thumbstick up / down | Speed override (no jogging while Y is held) |
 | Right **A** | Open or close the gripper |
 
 A small readout of joint values is attached to the left controller.

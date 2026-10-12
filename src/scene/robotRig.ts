@@ -28,7 +28,7 @@ function robotMaterials() {
     anodised: new THREE.MeshStandardMaterial({ color: 0x5b6366, roughness: 0.42, metalness: 0.45, name: 'gripperBody' }),
     finger: new THREE.MeshStandardMaterial({ color: 0xd2d5d6, roughness: 0.3, metalness: 0.8, name: 'finger' }),
     pad: new THREE.MeshStandardMaterial({ color: 0x2b2f30, roughness: 0.9, name: 'pad' }),
-    plate: new THREE.MeshStandardMaterial({ color: 0x2f3537, roughness: 0.35, metalness: 0.3, name: 'nameplate' }),
+    plate: new THREE.MeshStandardMaterial({ color: 0x2a3033, roughness: 0.7, metalness: 0.1, name: 'nameplate' }),
   };
 }
 type RM = ReturnType<typeof robotMaterials>;
@@ -212,15 +212,17 @@ export function buildRobot(parent: THREE.Object3D): RobotRig {
   sp.position.set(-0.1405, 0, 0.1);
   sp.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(-1, 0, 0)));
   base.add(sp);
-  const spPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.105, 0.05), m.flange);
+  // Matte dark plate with light type, same treatment as the arm nameplate:
+  // a bright metallic plate reflected the room and washed the text out.
+  const spPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.112, 0.062), m.plate);
   spPlate.position.z = 0.0002;
   sp.add(spPlate);
   const spText = new TextGroup();
-  spText.position.set(-0.046, 0.019, 0.0008);
-  spText.addText({ text: 'TX2-60', size: 0.0095, font: 'semibold', color: 0x2a2f31 });
+  spText.position.set(-0.05, 0.025, 0.0008);
+  spText.addText({ text: 'TX2-60', size: 0.012, font: 'semibold', color: 0xf2f2ee });
   spText.addText({
-    text: `Reach ${TX2_60.reachMm} mm\nLoad capacity ${TX2_60.loadCapacityKg} kg\nRepeatability ±${TX2_60.repeatabilityMm} mm`,
-    size: 0.0068, font: 'mono', color: 0x2a2f31, lineHeight: 1.35, position: [0, -0.013, 0],
+    text: `Reach ${TX2_60.reachMm} mm\nLoad ${TX2_60.loadCapacityKg} kg\nRepeat. ±${TX2_60.repeatabilityMm} mm`,
+    size: 0.0088, font: 'medium', color: 0xe4e6e3, lineHeight: 1.3, position: [0, -0.017, 0],
   });
   sp.add(spText);
 

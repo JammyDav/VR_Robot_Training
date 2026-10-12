@@ -8,7 +8,7 @@ import { BRAND } from '../config/brand';
 // Stage 2 headset shim so joint jogging can be tried on the Quest before the
 // pendant (stage 4) and deadman (stage 3) exist. Replaced by PendantLogic.
 //   Left stick up/down  → select axis      Right stick X → Move− / Move+
-//   Right A             → gripper toggle   Left Y + left stick up/down → speed
+//   Right A             → gripper toggle   Hold left Y + RIGHT stick up/down → speed
 
 const SPEED_STEPS = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1];
 
@@ -35,27 +35,31 @@ export function setupXRJog(robot: Robot, xr: XRRig) {
       const R = (xr.controllers.right?.userData.inputSource as XRInputSource | undefined)?.gamepad;
       if (!xr.isPresenting() || !L || !R) return;
 
-      const ly = L.axes[3] ?? 0;
+      // Y sits under the left thumb, so the speed modifier pairs with the RIGHT stick.
       const yHeld = L.buttons[5]?.pressed ?? false;
-      if (Math.abs(ly) > 0.7 && !stickLatch) {
+      const ly = L.axes[3] ?? 0;
+      const ry = R.axes[3] ?? 0;
+      const sel = yHeld ? ry : ly; // stick up is negative
+      if (Math.abs(sel) > 0.7 && !stickLatch) {
         stickLatch = true;
-        const step = ly < 0 ? -1 : 1; // stick up is negative
+        const step = sel < 0 ? -1 : 1;
         if (yHeld) {
           const i = SPEED_STEPS.indexOf(robot.speedOverride);
           robot.speedOverride = SPEED_STEPS[Math.min(SPEED_STEPS.length - 1, Math.max(0, (i < 0 ? 3 : i) - step))];
         } else {
           robot.jogAxis = (robot.jogAxis + step + JOINT_COUNT) % JOINT_COUNT;
         }
-      } else if (Math.abs(ly) < 0.3) stickLatch = false;
+      } else if (Math.abs(sel) < 0.3) stickLatch = false;
 
+      // No jogging while the speed modifier is held.
       const rx = R.axes[2] ?? 0;
-      robot.jogDir = rx > 0.5 ? 1 : rx < -0.5 ? -1 : 0;
+      robot.jogDir = yHeld ? 0 : rx > 0.5 ? 1 : rx < -0.5 ? -1 : 0;
 
       const a = R.buttons[4]?.pressed ?? false;
       if (a && !aLatch) robot.gripper.toggle();
       aLatch = a;
 
-      const lines = [`JOINT · ${Math.round(robot.speedOverride * 100)}% · ${robot.gripper.state}`];
+      const lines = [`JOINT · ${yHeld ? '[SPEED] ' : ''}${Math.round(robot.speedOverride * 100)}% · ${robot.gripper.state}`];
       for (let i = 0; i < JOINT_COUNT; i++) {
         lines.push(`${i === robot.jogAxis ? '▶' : ' '} J${i + 1} ${deg(robot.q[i]).toFixed(1).padStart(7)}°`);
       }
