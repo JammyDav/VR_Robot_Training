@@ -123,41 +123,67 @@ export function buildReader(root: THREE.Object3D, M: Materials): ReaderHandles {
   return { root: g, tray, trayIn, trayOut, nest, led };
 }
 
-export interface BeaconHandles {
-  red: THREE.MeshStandardMaterial;
-  amber: THREE.MeshStandardMaterial;
-  green: THREE.MeshStandardMaterial;
+interface BeaconTier {
+  lens: THREE.MeshStandardMaterial;
+  halo: THREE.Mesh;
+  lit: THREE.Color;
+  dim: THREE.Color;
 }
 
-/** Three-tier stack light on a post at the back-right corner of the guarding. */
+export interface BeaconHandles {
+  red: BeaconTier;
+  amber: BeaconTier;
+  green: BeaconTier;
+}
+
+/**
+ * Three-tier stack light on a post at the back-right corner of the guarding.
+ * Unlit lenses are dark and smoky so the lit tier stands out in a bright room;
+ * the lit tier also gets a soft additive halo so it reads from across the lab.
+ */
 export function buildBeacon(root: THREE.Object3D, M: Materials): BeaconHandles {
   const x = BENCH.x + BENCH.width / 2 - GUARD.inset;
   const z = BENCH.z - BENCH.depth / 2 + GUARD.inset;
   const g = group(root, x, BENCH.topY + GUARD.height, z, 0, 'beacon');
   mesh(cyl(0.012, 0.012, 0.25, 12), M.aluminium, g, 0, 0.125, 0);
-  mesh(cyl(0.03, 0.03, 0.02, 20), M.instrumentDark, g, 0, 0.26, 0);
-  const tier = (color: number, y: number) => {
-    const material = new THREE.MeshStandardMaterial({
-      color, emissive: color, emissiveIntensity: 0.05, roughness: 0.25, transparent: true, opacity: 0.9,
-    });
-    const m = mesh(cyl(0.028, 0.028, 0.05, 20), material, g, 0, y, 0);
+  mesh(cyl(0.032, 0.032, 0.02, 20), M.instrumentDark, g, 0, 0.26, 0);
+  const haloGeo = new THREE.SphereGeometry(0.055, 16, 12);
+  const tier = (color: number, y: number): BeaconTier => {
+    const lit = new THREE.Color(color);
+    const dim = lit.clone().lerp(new THREE.Color(0x16191a), 0.86);
+    const lens = new THREE.MeshStandardMaterial({ color: dim, emissive: lit, emissiveIntensity: 0, roughness: 0.2 });
+    const m = mesh(cyl(0.03, 0.03, 0.05, 24), lens, g, 0, y, 0);
     m.userData.dynamic = true;
-    mesh(cyl(0.029, 0.029, 0.004, 20), M.instrumentGrey, g, 0, y + 0.027, 0);
-    return material;
+    mesh(cyl(0.031, 0.031, 0.004, 24), M.instrumentGrey, g, 0, y + 0.027, 0);
+    const halo = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({
+      color: lit, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    halo.position.y = y;
+    halo.scale.set(1, 0.65, 1);
+    halo.renderOrder = 3;
+    halo.visible = false;
+    halo.userData.dynamic = true;
+    g.add(halo);
+    return { lens, halo, lit, dim };
   };
   const green = tier(SIGNAL.run, 0.297);
   const amber = tier(SIGNAL.manual, 0.351);
   const red = tier(SIGNAL.fault, 0.405);
-  mesh(cyl(0.024, 0.03, 0.018, 20), M.instrumentDark, g, 0, 0.44, 0);
+  mesh(cyl(0.026, 0.032, 0.018, 20), M.instrumentDark, g, 0, 0.44, 0);
   return { red, amber, green };
 }
 
 export type BeaconState = 'off' | 'run' | 'manual' | 'fault';
 
+function setTier(t: BeaconTier, on: boolean) {
+  t.lens.color.copy(on ? t.lit : t.dim);
+  t.lens.emissiveIntensity = on ? 1.3 : 0;
+  t.halo.visible = on;
+}
+
 export function setBeacon(b: BeaconHandles, state: BeaconState, t: number) {
-  const on = 1.6, off = 0.04;
-  b.green.emissiveIntensity = state === 'run' ? on : off;
-  b.amber.emissiveIntensity = state === 'manual' ? on : off;
-  // Fault flashes at 2 Hz.
-  b.red.emissiveIntensity = state === 'fault' ? (Math.floor(t * 4) % 2 ? on : 0.3) : off;
+  setTier(b.green, state === 'run');
+  setTier(b.amber, state === 'manual');
+  // Fault / E-stop flashes at 2 Hz, fully on / fully off.
+  setTier(b.red, state === 'fault' && Math.floor(t * 4) % 2 === 0);
 }
