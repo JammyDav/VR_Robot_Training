@@ -11,6 +11,7 @@ export const VIEWS: Record<string, View> = {
   overview: { pos: [2.6, 2.3, 2.2], target: [0, 0.95, -0.6] },
   cell: { pos: [0.55, 1.45, 0.55], target: [BENCH.x, BENCH.topY + 0.1, BENCH.z] },
   boards: { pos: [0, EYE, 0.6], target: [0, BOARDS.y, -HALF_D] },
+  robot: { pos: [-0.95, 1.5, 0.45], target: [BENCH.x, BENCH.topY + 0.42, BENCH.z] },
 };
 
 /** Orbit camera for the desktop fallback. Number keys 1-4 jump to preset views. */
@@ -31,7 +32,7 @@ export function setupDesktopCamera(camera: THREE.PerspectiveCamera, dom: HTMLEle
   };
   go('operator');
 
-  const order: Array<keyof typeof VIEWS> = ['operator', 'overview', 'cell', 'boards'];
+  const order: Array<keyof typeof VIEWS> = ['operator', 'overview', 'cell', 'boards', 'robot'];
   window.addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     const i = Number(e.key) - 1;

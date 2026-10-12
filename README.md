@@ -2,7 +2,7 @@
 
 A WebXR training simulation of a six-axis TX2-60-class arm moving SLAS-format microplates from a dispenser nest to a plate-reader tray. It is built for the Meta Quest 3 browser and also works on a desktop with keyboard and mouse.
 
-> **Status: Stage 1 of 6.** Done so far: the lab, lighting, XR entry, the desktop camera and a performance readout. The robot, pendant, programming and challenges come in later stages.
+> **Status: Stage 2 of 6.** Done so far: the lab, the robot (joint tree, forward kinematics, joint jogging) and the gripper. Cartesian jogging, the deadman and E-stop, the pendant, programming and the challenges come in later stages.
 
 ## Live build
 
@@ -49,15 +49,33 @@ npm install
 - For authoritative numbers, use Meta's **OVR Metrics Tool** overlay (fps, GPU and CPU levels).
 - Targets: 72 fps minimum, 90 preferred, and under about 150 draw calls in the main view.
 
-## Desktop controls (Stage 1)
+## Controls (Stage 2, temporary)
+
+These are stop-gap mappings until the pendant arrives in Stage 4. **There is no enabling device (deadman) yet**, so motion is not gated until Stage 3.
+
+### Desktop
 
 | Input | Action |
 |---|---|
-| Left-drag | Orbit |
-| Right-drag | Pan |
-| Scroll | Zoom |
-| `1` `2` `3` `4` | Operator, overview, cell close-up and boards views |
+| `↑` `↓` | Select joint |
+| Hold `←` / `→` | Move− / Move+ on the selected joint |
+| `[` `]` | Speed override down / up (1, 5, 10, 25, 50, 75, 100 %) |
+| `G` | Open or close the gripper |
+| `T` | Toggle the TCP triad |
+| `1`–`5` | Operator, overview, cell, boards and robot views |
+| Left-drag, right-drag, scroll | Orbit, pan, zoom |
 | `P` | Performance readout |
+
+### Quest controllers
+
+| Input | Action |
+|---|---|
+| Left thumbstick up / down | Select joint |
+| Right thumbstick left / right | Move− / Move+ |
+| Hold left **Y** + left thumbstick up / down | Speed override |
+| Right **A** | Open or close the gripper |
+
+A small readout of joint values is attached to the left controller.
 
 ## Project layout
 
@@ -92,4 +110,30 @@ src/
 
 ## Robot specification verification
 
-To be completed in Stage 2. The table will record each value used, its source and whether it has been verified.
+Primary source: Stäubli, *TX2-60 Range* product data sheet, **V17, © 02/2026** (doc. D181.636.04), downloaded from staubli.com on 12 Oct 2026.
+
+| Value | Used in the sim | Source | Status |
+|---|---|---|---|
+| Reach, axis 1 to axis 6 | 670 mm | Datasheet | ✅ Verified |
+| Load capacity | 4.5 kg | Datasheet (a single figure, "load capacity") | ✅ Verified (see note 1) |
+| Repeatability (ISO 9283) | ±0.02 mm | Datasheet | ✅ Verified |
+| J1 range | ±180° | Datasheet | ✅ Verified |
+| J2 range | ±127.5° | Datasheet | ✅ Verified |
+| J3 range | **±142.5°** | Datasheet | ✅ Verified. The brief said ±152.5°, which is the TX2-60**L** value. |
+| J4 range | ±270° | Datasheet | ✅ Verified |
+| J5 range | **+132.5° / −121°** | Datasheet | ✅ Verified. The brief said +133.5° / −122.5°. |
+| J6 range | ±270° | Datasheet (software-configurable to ±11 250°) | ✅ Verified |
+| Max joint speeds J1–J6 | 435 / 410 / 540 / 995 / 1065 / 1445 °/s | Datasheet | ✅ Verified |
+| Upper arm + forearm (J2→J5) | 290 + 310 = 600 mm | Datasheet: max reach axis 1–5 = 600 mm; axis 3–5 = 310 mm | ✅ Derived from datasheet |
+| Flange (J5→J6 face) | 70 mm | 670 − 600 | ✅ Derived from datasheet |
+| Base height (mount face → J2) | 375 mm | TX60-family dimension drawings | ⚠️ Not on the datasheet, not verified |
+| Elbow lateral offset | 20 mm | TX60-family DH tables | ⚠️ Not on the datasheet, not verified |
+| Zero position | All joints 0 = arm vertical | Stäubli convention | ⚠️ Convention, not on the datasheet |
+
+1. Some resellers, and the French edition of an earlier datasheet, quote **3.5 kg nominal / 4.5 kg maximum**. V17 gives only "load capacity 4.5 kg", so the spec plate reads "Load capacity 4.5 kg" rather than "nominal payload".
+
+### Known approximations
+
+- The visual model is procedural. Its proportions follow the kinematic dimensions, but the casting shapes are approximate.
+- Manual jogging runs at 10 % of each joint's maximum speed at 100 % override. The 250 mm/s manual TCP speed cap is enforced from Stage 3.
+- The gripper is a generic parallel-jaw plate gripper. Its TCP sits 128 mm from the flange face, at the centre between the fingertips.

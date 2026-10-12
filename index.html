@@ -36,7 +36,17 @@
         padding: 6px 10px; border-radius: 2px; max-width: 46ch; }
       #loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg);
         font-size: 14px; color: var(--cbre-green); transition: opacity .4s; }
-      @media (max-width: 640px) { #hint { display: none; } .title span { display: none; } }
+      #jog { position: fixed; right: 16px; top: 72px; width: 260px; background: rgba(255,255,255,.9);
+        border-top: 3px solid var(--cbre-green); padding: 10px 12px; border-radius: 2px; font-size: 12px; }
+      .jog-head { font: 11px 'Space Mono', monospace; color: var(--cbre-green); margin-bottom: 8px; }
+      .jog-row { display: grid; grid-template-columns: 28px 1fr 58px; align-items: center; gap: 8px; padding: 3px 4px; }
+      .jog-row.sel { background: #e8f0ed; box-shadow: inset 3px 0 0 var(--cbre-green); }
+      .jog-row .ax { font-weight: 600; }
+      .jog-row .bar { position: relative; height: 4px; background: var(--light-grey); border-radius: 2px; }
+      .jog-row .bar i { position: absolute; top: -3px; width: 2px; height: 10px; background: var(--dark-grey); margin-left: -1px; }
+      .jog-row.moving .bar i { background: var(--cbre-green); box-shadow: 0 0 0 2px var(--accent-green); }
+      .jog-row .val { font-family: 'Space Mono', monospace; text-align: right; }
+      @media (max-width: 640px) { #hint, #jog { display: none; } .title span { display: none; } }
     </style>
   </head>
   <body>
@@ -46,7 +56,9 @@
       <button id="enter-vr" disabled>Checking VR…</button>
     </div>
     <div id="perf"></div>
-    <div id="hint">Drag to orbit · right-drag to pan · scroll to zoom · <b>1–4</b> preset views · <b>P</b> performance readout</div>
+    <div id="jog"></div>
+    <div id="hint"><b>↑ ↓</b> select joint · hold <b>← →</b> Move− / Move+ · <b>[ ]</b> speed · <b>G</b> gripper · <b>T</b> TCP triad<br>
+      Drag to orbit · right-drag to pan · scroll to zoom · <b>1–5</b> views · <b>P</b> performance</div>
     <div id="loading">Preparing the lab…</div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -8,8 +8,12 @@ import { buildLab, updateClock } from './scene/lab';
 import { buildDispenser, buildReader, buildBeacon, setBeacon } from './scene/instruments';
 import { buildBoards } from './scene/boards';
 import { setupLighting } from './scene/lighting';
+import { buildRobot } from './scene/robotRig';
+import { Robot } from './core/robot/Robot';
 import { setupXR } from './xr/xrSession';
 import { setupDesktopCamera } from './input/desktopCamera';
+import { setupDesktopJog } from './input/desktopJog';
+import { setupXRJog } from './input/xrJog';
 import { PerfHud } from './debug/perfHud';
 
 const container = document.getElementById('app')!;
@@ -48,13 +52,20 @@ staticRoot.name = 'static';
 scene.add(staticRoot);
 batcher.build(staticRoot);
 
-// --- Views -----------------------------------------------------------------
+// --- Robot: core state + visual rig -----------------------------------------
+const robot = new Robot();
+const rig = buildRobot(scene);
+rig.triad.visible = false;
+
+// --- Views and input ---------------------------------------------------------
 const desktop = setupDesktopCamera(camera, renderer.domElement);
 const xr = setupXR(renderer, scene, camera, vrButton);
 const hud = new PerfHud(document.getElementById('perf')!, camera);
+const jog = setupDesktopJog(robot, document.getElementById('jog')!, {
+  toggleTriad: () => { rig.triad.visible = !rig.triad.visible; },
+});
 
-// Expose for debugging in the browser console.
-Object.assign(window as object, { __sim: { scene, renderer, camera, dispenser, reader, xr } });
+const xrJog = setupXRJog(robot, xr);
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -68,7 +79,12 @@ window.addEventListener('resize', () => {
 let last = performance.now();
 let elapsed = 0;
 const loopStats = { frames: 0 };
-(window as unknown as { __sim: object }).__sim = { ...(window as unknown as { __sim: object }).__sim, loopStats, elapsed: () => elapsed };
+
+// Exposed for debugging in the browser console.
+Object.assign(window as object, {
+  __sim: { scene, renderer, camera, desktop, dispenser, reader, xr, robot, rig, loopStats, elapsed: () => elapsed },
+});
+
 renderer.setAnimationLoop(() => {
   const now = performance.now();
   const dt = Math.min(Math.max((now - last) / 1000, 0), 0.1);
@@ -76,14 +92,16 @@ renderer.setAnimationLoop(() => {
   elapsed += dt;
   loopStats.frames++;
 
+  xrJog.update();
+  robot.step(dt);
+  rig.update(robot.q, robot.gripper.halfGap);
+
   if (!xr.isPresenting()) desktop.controls.update();
   updateClock(lab.clock);
   setBeacon(beacon, 'manual', elapsed);
   dispenser.led.material.emissiveIntensity = 1.2;
   reader.led.material.emissiveIntensity = 1.2;
-  // Stage 1 demo: tray glides in and out so the dynamic path is exercised.
-  const s = 0.5 - 0.5 * Math.cos(elapsed * 0.6);
-  reader.tray.position.x = THREE.MathUtils.lerp(reader.trayIn, reader.trayOut, s);
+  if (loopStats.frames % 3 === 0) jog.refresh();
 
   renderer.render(scene, camera);
   hud.sample(dt, renderer.info, xr.isPresenting());
