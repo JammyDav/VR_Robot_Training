@@ -63,12 +63,18 @@ window.addEventListener('resize', () => {
 });
 
 // --- Loop ------------------------------------------------------------------
-const timer = new THREE.Timer();
+// Frame time from performance.now(): rAF and XR frame timestamps use different
+// clocks on some browsers, so they are not mixed. Clamped against stalls.
+let last = performance.now();
 let elapsed = 0;
-renderer.setAnimationLoop((time) => {
-  timer.update(time);
-  const dt = Math.min(timer.getDelta(), 0.1);
+const loopStats = { frames: 0 };
+(window as unknown as { __sim: object }).__sim = { ...(window as unknown as { __sim: object }).__sim, loopStats, elapsed: () => elapsed };
+renderer.setAnimationLoop(() => {
+  const now = performance.now();
+  const dt = Math.min(Math.max((now - last) / 1000, 0), 0.1);
+  last = now;
   elapsed += dt;
+  loopStats.frames++;
 
   if (!xr.isPresenting()) desktop.controls.update();
   updateClock(lab.clock);

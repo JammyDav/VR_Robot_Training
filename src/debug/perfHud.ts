@@ -34,6 +34,7 @@ export class PerfHud {
 
   private apply() {
     this.el.style.display = this.visible ? 'block' : 'none';
+    if (this.visible && !this.el.textContent) this.el.textContent = 'Measuring…';
     this.xrText.visible = false;
   }
 
