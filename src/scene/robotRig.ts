@@ -14,6 +14,9 @@ import { TextGroup } from '../ui/text';
 export interface RobotRig extends JointTree {
   jaws: [THREE.Object3D, THREE.Object3D];
   triad: THREE.Object3D;
+  /** Invisible, generous hit volume around the gripper for the pointer ray. */
+  gripperProxy: THREE.Mesh;
+  setGripperHighlight(on: boolean): void;
   update(q: ArrayLike<number>, gripperHalfGap: number): void;
 }
 
@@ -241,6 +244,13 @@ export function buildRobot(parent: THREE.Object3D): RobotRig {
   axis(0x2f6fd8, Math.PI / 2, 0, 0, 0, 0.0225);
   tree.tcp.add(triad);
 
+  // Ray target: ~12 cm sphere around the gripper body (small, moving, ~1.3 m away).
+  const gripperProxy = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), new THREE.MeshBasicMaterial({ visible: false }));
+  gripperProxy.position.z = TOOL_LENGTH * 0.55;
+  gripperProxy.userData.dynamic = true;
+  gripperProxy.name = 'gripperProxy';
+  j6.add(gripperProxy);
+
   for (const g of [base, ...tree.joints]) bake(g);
 
   parent.add(tree.root);
@@ -249,6 +259,13 @@ export function buildRobot(parent: THREE.Object3D): RobotRig {
     ...tree,
     jaws,
     triad,
+    gripperProxy,
+    setGripperHighlight(on) {
+      for (const mat of [m.anodised, m.finger]) {
+        mat.emissive.setHex(on ? 0x17e88f : 0x000000);
+        mat.emissiveIntensity = on ? 0.35 : 0;
+      }
+    },
     update(q, halfGap) {
       applyJoints(tree, q);
       jaws[0].position.y = halfGap;

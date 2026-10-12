@@ -30,7 +30,7 @@
       }
       #enter-vr:hover:not(:disabled) { box-shadow: inset 0 -3px 0 var(--accent-green); }
       #enter-vr:disabled { background: #7f8480; cursor: default; }
-      #perf { position: fixed; left: 16px; bottom: 16px; font: 12px 'Space Mono', monospace; color: var(--cbre-green);
+      #perf { position: fixed; left: 50%; transform: translateX(-50%); top: 16px; font: 12px 'Space Mono', monospace; color: var(--cbre-green);
         background: rgba(255,255,255,.85); padding: 4px 8px; border-radius: 2px; pointer-events: none; }
       #hint { position: fixed; right: 16px; bottom: 16px; font-size: 12px; background: rgba(255,255,255,.85);
         padding: 6px 10px; border-radius: 2px; max-width: 46ch; }
@@ -63,10 +63,9 @@
       <button id="enter-vr" disabled>Checking VR…</button>
     </div>
     <div id="perf"></div>
-    <div id="jog"></div>
-    <div id="hint"><b>Space</b> hold = enabling device (Shift+Space = panic) · <b>Tab</b> jog mode · <b>Q</b>+<b>↑↓</b> speed<br>
-      Joint: <b>W/S</b> axis, <b>← →</b> Move− / Move+ · Frame/Tool: <b>W/S A/D</b> X/Y, <b>↑↓</b> Z · <b>B</b> tap rotate, hold 1 s E-stop<br>
-      <b>G</b> gripper · <b>Esc</b> E-stop · <b>R</b> reset · <b>M</b> working mode · <b>T</b> TCP triad · <b>1–5</b> views · <b>P</b> perf</div>
+    <div id="hint"><b>Space</b> hold = enabling device · <b>Tab</b> jog mode · <b>Q</b>+<b>↑↓</b> speed · Joint: <b>W/S</b> axis, <b>← →</b> Move∓<br>
+      Frame/Tool: <b>W/S A/D</b> X/Y, <b>↑↓</b> Z · <b>B</b> tap rotate, hold E-stop · <b>Click</b> panel keys or the gripper<br>
+      <b>Esc</b> E-stop · <b>R</b> reset · <b>M</b> mode · <b>G</b> gripper · <b>T</b> triad · <b>H</b> tutorial · <b>1–5</b> views · <b>P</b> perf</div>
     <div id="loading">Preparing the lab…</div>
     <script type="module" src="/src/main.ts"></script>
   </body>

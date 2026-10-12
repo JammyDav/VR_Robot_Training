@@ -16,9 +16,7 @@ import { PendantLogic } from './input/PendantLogic';
 import { emptyInput } from './input/PendantInput';
 import { readXRInput, xrControllersReady } from './input/xrInput';
 import { DesktopInput } from './input/desktopInput';
-import { buildStatus } from './ui/statusModel';
-import { createDesktopStatus } from './ui/desktopStatus';
-import { createXRStatus } from './ui/xrStatus';
+import { createHud } from './ui/hud';
 import { PerfHud } from './debug/perfHud';
 
 const container = document.getElementById('app')!;
@@ -48,7 +46,7 @@ const lab = buildLab(staging, M);
 const dispenser = buildDispenser(staging, M);
 const reader = buildReader(staging, M);
 const beacon = buildBeacon(staging, M);
-buildBoards(staging, M);
+const boards = buildBoards(staging, M);
 
 const batcher = new StaticBatcher();
 batcher.absorb(staging);
@@ -66,27 +64,35 @@ rig.triad.visible = false;
 // --- Views and input ---------------------------------------------------------
 const desktop = setupDesktopCamera(camera, renderer.domElement);
 const xr = setupXR(renderer, scene, camera, vrButton);
-const hud = new PerfHud(document.getElementById('perf')!, camera);
+const perf = new PerfHud(document.getElementById('perf')!, camera);
 const logic = new PendantLogic(ctl);
 const desktopInput = new DesktopInput();
 const input = emptyInput();
-const desktopStatus = createDesktopStatus(document.getElementById('jog')!);
-const xrStatus = createXRStatus(xr);
+const hud = createHud({ ctl, logic, xr, rig, boards, scene, camera, dom: renderer.domElement });
 
-// Panel actions (the on-screen pendant takes these over in stage 4).
+// Desktop shortcuts for panel keys (the same actions are on the pendant panel).
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.target instanceof HTMLInputElement) return;
   if (e.code === 'Escape') ctl.triggerEstop();
   else if (e.code === 'KeyR') ctl.resetEstop();
   else if (e.code === 'KeyM') ctl.cycleMode();
   else if (e.code === 'KeyT') rig.triad.visible = !rig.triad.visible;
+  else if (e.code === 'KeyG') ctl.toggleGripper();
+  else if (e.code === 'KeyH') hud.toggleTutorial();
 });
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+// Resize when the window size changes (checked per frame: a tab opened in the
+// background reports 0×0 at load and may not fire a resize event later).
+let sizeW = 0, sizeH = 0;
+function syncSize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  if ((w === sizeW && h === sizeH) || w === 0 || h === 0 || renderer.xr.isPresenting) return;
+  sizeW = w; sizeH = h;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+  renderer.setSize(w, h);
+}
+syncSize();
 
 // --- Loop ------------------------------------------------------------------
 // Frame time from performance.now(): rAF and XR frame timestamps use different
@@ -97,7 +103,7 @@ const loopStats = { frames: 0 };
 
 // Exposed for debugging in the browser console.
 Object.assign(window as object, {
-  __sim: { scene, renderer, camera, desktop, dispenser, reader, xr, ctl, robot, rig, logic, desktopInput, loopStats, elapsed: () => elapsed },
+  __sim: { scene, renderer, camera, desktop, dispenser, reader, xr, ctl, robot, rig, logic, desktopInput, hud, loopStats, elapsed: () => elapsed },
 });
 
 renderer.setAnimationLoop(() => {
@@ -106,6 +112,7 @@ renderer.setAnimationLoop(() => {
   last = now;
   elapsed += dt;
   loopStats.frames++;
+  syncSize();
 
   // One input path per frame, both into the same pendant logic and controller.
   if (xrControllersReady(xr)) readXRInput(xr, input);
@@ -119,14 +126,10 @@ renderer.setAnimationLoop(() => {
   setBeacon(beacon, ctl.beacon, elapsed);
   dispenser.led.material.emissiveIntensity = 1.2;
   reader.led.material.emissiveIntensity = 1.2;
-  if (loopStats.frames % 3 === 0) {
-    const status = buildStatus(ctl, logic);
-    if (xr.isPresenting()) xrStatus.update(status);
-    else desktopStatus.render(status, ctl);
-  }
+  hud.update(dt, input.rTrigger);
 
   renderer.render(scene, camera);
-  hud.sample(dt, renderer.info, xr.isPresenting());
+  perf.sample(dt, renderer.info, xr.isPresenting());
 });
 
 const loading = document.getElementById('loading')!;

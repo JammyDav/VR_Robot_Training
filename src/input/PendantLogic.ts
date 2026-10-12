@@ -12,15 +12,15 @@ import type { PendantInput } from './PendantInput';
 //   Frame/Tool rotate:    left stick ↔ Rx, ↕ Ry; right stick ↔ Rz
 //   Right B tap (< 0.3 s)       toggle translate / rotate
 //   Right B hold (1 s)          emergency stop
-//   Right A                     record point (stage 5); in E-stop, hold 1 s to reset
-//   Right trigger               gripper toggle (Manual)
+//   Right A                     record point (Joint/Frame/Tool) · hold to move to point (Point)
+//   Right trigger               ray select: panel keys, boards, and the gripper (point at it)
+//   E-stop reset                RESET key on the pendant panel (enabling device released)
 
 export const DEADZONE = 0.15;
 const LATCH_ON = 0.7;
 const LATCH_OFF = 0.3;
 export const B_TAP_MAX = 0.3;
 export const B_ESTOP_HOLD = 1.0;
-export const A_RESET_HOLD = 1.0;
 
 export interface PendantHooks {
   recordPoint?(): void;
@@ -41,10 +41,8 @@ export class PendantLogic {
   private speedLatch = false;
   private bDown = 0; // seconds held
   private bFired = false;
-  private aDown = 0;
-  private aFired = false;
   /** Progress 0…1 of a hold gesture, for UI rings. */
-  holdProgress = { estop: 0, reset: 0 };
+  holdProgress = { estop: 0 };
 
   constructor(private ctl: Controller, private hooks: PendantHooks = {}) {}
 
@@ -56,7 +54,6 @@ export class PendantLogic {
     ctl.setEnableLevel(inp.enable);
 
     if (pressed('x')) ctl.cycleJogMode();
-    if (pressed('rTrigger')) ctl.toggleGripper();
 
     // Right B: tap toggles rotation, a 1 s hold is the E-stop shortcut.
     if (inp.b) {
@@ -69,18 +66,10 @@ export class PendantLogic {
     }
     this.holdProgress.estop = inp.b && !this.bFired ? Math.min(1, this.bDown / B_ESTOP_HOLD) : 0;
 
-    // Right A: reset while E-stopped (hold), otherwise record / move-to-point.
-    if (ctl.estop) {
-      if (inp.a) {
-        this.aDown += dt;
-        if (!this.aFired && this.aDown >= A_RESET_HOLD) { ctl.resetEstop(); this.aFired = true; }
-      } else { this.aDown = 0; this.aFired = false; }
-      this.holdProgress.reset = inp.a && !this.aFired ? Math.min(1, this.aDown / A_RESET_HOLD) : 0;
-    } else {
-      this.holdProgress.reset = 0;
-      if (!inp.a) { this.aDown = 0; this.aFired = false; }
+    // Right A: record a point, or (Point mode) hold to move to the selected point.
+    if (!ctl.estop) {
       if (ctl.jogMode === 'point') this.hooks.moveToPoint?.(inp.a);
-      else if (pressed('a') && !this.aFired) this.hooks.recordPoint?.();
+      else if (pressed('a')) this.hooks.recordPoint?.();
     }
 
     // Speed override: hold Y, flick the right stick.

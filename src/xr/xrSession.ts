@@ -37,7 +37,9 @@ export function setupXR(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camer
   for (let i = 0; i < 2; i++) {
     const ctrl = renderer.xr.getController(i);
     const grip = renderer.xr.getControllerGrip(i);
-    grip.add(factory.createControllerModel(grip));
+    const model = factory.createControllerModel(grip);
+    grip.add(model);
+    grip.userData.model = model;
     rig.add(ctrl, grip);
     out.raw.push(ctrl);
     out.rawGrips.push(grip);

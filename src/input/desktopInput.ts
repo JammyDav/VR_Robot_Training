@@ -6,9 +6,9 @@ import { emptyInput, type PendantInput } from './PendantInput';
 //   W/S, A/D             left stick ↕ ↔                  Arrow keys = right stick
 //   Tab                  left X (jog mode)               Q (hold) = left Y (speed modifier)
 //   Enter                right A                         B = right B (tap / hold)
-//   G                    right trigger (gripper)
+//   Mouse click          right trigger (ray select); G = gripper shortcut
 
-const KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'KeyQ', 'Enter', 'KeyB', 'KeyG']);
+const KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'KeyQ', 'Enter', 'KeyB']);
 
 export class DesktopInput {
   private held = new Set<string>();
@@ -43,7 +43,7 @@ export class DesktopInput {
     out.lTrigger = false;
     out.a = h('Enter');
     out.b = h('KeyB');
-    out.rTrigger = h('KeyG');
+    out.rTrigger = false; // desktop selects with the mouse
     return out;
   }
 }
