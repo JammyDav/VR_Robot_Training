@@ -86,7 +86,7 @@ function buildBench(root: THREE.Object3D, M: Materials) {
   // Grey powder-coated frame: legs, aprons, lower stretchers, feet.
   const lx = W / 2 - 0.06, lz = D / 2 - 0.06;
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    mesh(box(LEG, H - TT - 0.04, LEG), M.frame, g, sx * lx, (H - TT - 0.04) / 2 + 0.04, sz * lz, 0, 0, 0, true);
+    mesh(box(LEG, H - TT - 0.04, LEG), M.frame, g, sx * lx, (H - TT - 0.04) / 2 + 0.04, sz * lz);
     mesh(cyl(0.022, 0.026, 0.04, 12), M.rubber, g, sx * lx, 0.02, sz * lz);
   }
   for (const sz of [-1, 1]) mesh(box(W - 0.12, 0.06, 0.03), M.frame, g, 0, H - TT - 0.03, sz * lz);
@@ -133,7 +133,7 @@ function buildBench(root: THREE.Object3D, M: Materials) {
   // Low guarding on the bench perimeter: aluminium extrusion + Perspex infill.
   const gx = W / 2 - GUARD.inset, gz = D / 2 - GUARD.inset, gh = GUARD.height;
   const R = 0.022; // extrusion section
-  const post = (x: number, z: number) => mesh(box(R, gh, R), M.aluminium, g, x, H + gh / 2, z, 0, 0, 0, true);
+  const post = (x: number, z: number) => mesh(box(R, gh, R), M.aluminium, g, x, H + gh / 2, z);
   for (const x of [-gx, 0, gx]) { post(x, gz); post(x, -gz); }
   for (const z of [gz, -gz]) {
     mesh(box(2 * gx, R, R), M.aluminium, g, 0, H + gh - R / 2, z);
@@ -284,7 +284,7 @@ function buildStool(root: THREE.Object3D, M: Materials, x: number, z: number) {
   mesh(cyl(0.03, 0.04, 0.08, 14), M.frameDark, g, 0, 0.1, 0);
   mesh(cyl(0.022, 0.022, 0.4, 14), M.stainless, g, 0, 0.34, 0);
   mesh(new THREE.TorusGeometry(0.19, 0.012, 8, 24), M.stainless, g, 0, 0.32, 0, Math.PI / 2);
-  mesh(cyl(0.19, 0.17, 0.07, 24), M.stoolSeat, g, 0, 0.6, 0, 0, 0, 0, true);
+  mesh(cyl(0.19, 0.17, 0.07, 24), M.stoolSeat, g, 0, 0.6, 0);
 }
 
 // ---------------------------------------------------------------------------

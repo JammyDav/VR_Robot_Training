@@ -49,7 +49,8 @@ export class ControllerMap {
       P.addText({ text: side === 'left' ? 'LEFT · PENDANT' : 'RIGHT · POINTER', size: 0.0048, font: 'mono', color: BRAND.sage, position: [x0 + 0.004, -0.025, 0] });
       for (let i = 0; i < 4; i++) {
         const y = -0.037 - i * 0.0215;
-        P.addRect(x0 + 0.004, y + 0.0055, 0.03, 0.011, side === 'left' ? BRAND.cbreGreen : BRAND.midnight);
+        // Chips sit on the column panel: lift them a layer so they never z-fight in the headset.
+        P.addRect(x0 + 0.004, y + 0.0055, 0.03, 0.011, side === 'left' ? BRAND.cbreGreen : BRAND.midnight, 0.0008);
         const chip = P.addText({ text: '', size: 0.0046, font: 'semibold', color: 0xffffff, anchorX: 'center', anchorY: 'middle', position: [x0 + 0.019, y, 0] });
         const text = P.addText({ text: '', size: 0.0052, font: 'body', color: UI.text, maxWidth: colW - 0.04, lineHeight: 1.2, anchorY: 'middle', position: [x0 + 0.037, y, 0] });
         this.rows.push({ chip, text });

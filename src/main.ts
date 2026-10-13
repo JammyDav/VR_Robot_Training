@@ -29,7 +29,10 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.0;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoft costs too much on Quest
+// Shadows re-render only when something that casts them has moved (see loop).
+renderer.shadowMap.autoUpdate = false;
+renderer.shadowMap.needsUpdate = true;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -94,6 +97,20 @@ function syncSize() {
 }
 syncSize();
 
+// --- Shadow invalidation ---------------------------------------------------------
+// Casters that move: the arm, the gripper jaws and the reader tray.
+const shadowWatch = (() => {
+  const last = new Float64Array(8).fill(NaN);
+  return {
+    changed() {
+      const v = [...robot.q, robot.gripper.halfGap, reader.tray.position.x];
+      let dirty = false;
+      for (let i = 0; i < v.length; i++) if (Math.abs(v[i] - last[i]) > 1e-6 || Number.isNaN(last[i])) { dirty = true; last[i] = v[i]; }
+      return dirty;
+    },
+  };
+})();
+
 // --- Loop ------------------------------------------------------------------
 // Frame time from performance.now(): rAF and XR frame timestamps use different
 // clocks on some browsers, so they are not mixed. Clamped against stalls.
@@ -120,6 +137,7 @@ renderer.setAnimationLoop(() => {
   logic.update(dt, input);
   ctl.update(dt);
   rig.update(robot.q, robot.gripper.halfGap);
+  if (shadowWatch.changed()) renderer.shadowMap.needsUpdate = true;
 
   if (!xr.isPresenting()) desktop.controls.update();
   updateClock(lab.clock);

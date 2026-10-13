@@ -25,6 +25,8 @@ interface StepCtx {
 export interface Step {
   id: string;
   title: string;
+  /** Two-to-four word cue shown at the controller in VR (full text is on the whiteboard). */
+  cue: string;
   xr: string;
   desktop: string;
   anchor: (desktop: boolean) => Anchor;
@@ -56,6 +58,10 @@ export interface TutorialDeps {
   /** Where the desktop callout docks (child of the camera), and its position there. */
   desktopDock: THREE.Object3D;
   desktopCalloutPos: THREE.Vector3;
+  /** VR: the full callout lives on the whiteboard, out of the line of sight. */
+  boardMount: THREE.Object3D;
+  boardPos: THREE.Vector3;
+  boardScale: number;
 }
 
 export function defaultSteps(p: Panel): Step[] {
@@ -63,42 +69,42 @@ export function defaultSteps(p: Panel): Step[] {
   const ca = (hand: 'left' | 'right', component: string): ControllerAnchor => ({ kind: 'controller', hand, component });
   return [
     {
-      id: 'enable', title: 'Hold the enabling device',
+      id: 'enable', title: 'Hold the enabling device', cue: 'Hold grip halfway',
       xr: 'Squeeze the left grip halfway and keep holding it. This is the enabling device (the "deadman" switch): the arm can only move while it is held in the middle. Let go, or squeeze hard, and motion stops.',
       desktop: 'Hold Space. This is the enabling device (the "deadman" switch): the arm can only move while it is held. Releasing it stops all motion. Shift+Space simulates squeezing it too hard, which also stops the arm.',
       anchor: (d) => (d ? pa('enable') : ca('left', 'xr-standard-squeeze')),
       done: (c) => c.ctl.enable === 'enabled',
     },
     {
-      id: 'jogMode', title: 'Cycle the jog mode',
+      id: 'jogMode', title: 'Cycle the jog mode', cue: 'Press X',
       xr: 'Press X to change the jog mode, which sets how the sticks move the arm. Joint turns one axis at a time. Frame moves the TCP (tool centre point, the spot between the fingertips) along the room axes. Tool moves it along the gripper\'s own axes.',
       desktop: 'Press Tab to change the jog mode, which sets how the keys move the arm. Joint turns one axis at a time. Frame moves the TCP (tool centre point, the spot between the fingertips) along the room axes. Tool moves it along the gripper\'s own axes.',
       anchor: (d) => (d ? pa('jogMode') : ca('left', 'x-button')),
       done: (c) => c.seen.has('jogMode'),
     },
     {
-      id: 'jog', title: 'Jog an axis',
+      id: 'jog', title: 'Jog an axis', cue: 'Push left / right',
       xr: 'Press X until the panel reads Joint. Hold the enabling device and push the right stick sideways: that is Move+ / Move−, turning the selected axis. Flick the left stick up or down to pick a different axis. Move any axis a few degrees.',
       desktop: 'Press Tab until the panel reads Joint. Hold Space and press the Left or Right arrow: that is Move− / Move+, turning the selected axis. W and S pick a different axis. Move any axis a few degrees.',
       anchor: (d) => (d ? pa('joints') : ca('right', 'xr-standard-thumbstick')),
       done: (c) => c.jointTravel > (3 * Math.PI) / 180,
     },
     {
-      id: 'speed', title: 'Change the speed override',
+      id: 'speed', title: 'Change the speed override', cue: 'Hold Y + right stick',
       xr: 'Hold Y and flick the right stick up or down. The speed override is a percentage of the manual reduced speed (never more than 250 mm/s at the TCP). Work slowly when you are close to anything.',
       desktop: 'Hold Q and press ↑ or ↓. The speed override is a percentage of the manual reduced speed (never more than 250 mm/s at the TCP). Work slowly when you are close to anything.',
       anchor: (d) => (d ? pa('speed') : ca('left', 'y-button')),
       done: (c) => c.seen.has('speed'),
     },
     {
-      id: 'gripper', title: 'Close and open the gripper',
+      id: 'gripper', title: 'Close and open the gripper', cue: 'Aim at gripper, pull',
       xr: 'Point the right controller at the gripper. When it glows, pull the trigger to close it. Pull again to open it.',
       desktop: 'Click the gripper on the robot (or press GRIPPER on the panel, or G) to close it. Do it again to open it.',
       anchor: (d) => (d ? pa('grip') : ca('right', 'xr-standard-trigger')),
       done: (c) => c.seen.has('gripper:closed') && c.seen.has('gripper:open'),
     },
     {
-      id: 'estop', title: 'Emergency stop and reset',
+      id: 'estop', title: 'Emergency stop and reset', cue: 'Hold B for 1 s',
       xr: 'Hold B for one second, or press the red E-STOP on the panel. Everything halts and the beacon flashes red. To recover: release the enabling device, then press RESET on the panel.',
       desktop: 'Hold B for one second, or press Esc or the red E-STOP on the panel. Everything halts and the beacon flashes red. To recover: release Space, then press RESET (or R).',
       anchor: (d) => (d ? pa('estop') : ca('right', 'b-button')),
@@ -108,13 +114,15 @@ export function defaultSteps(p: Panel): Step[] {
 }
 
 export class Tutorial {
-  readonly callout = new Panel(0.13, 0.072, 0xffffff);
+  readonly callout = new Panel(0.13, 0.088, 0xffffff);
   private titleT: Text;
   private bodyT: Text;
   private stepT: Text;
   private skipBtn: Button;
   private line: THREE.Line;
   private ring: THREE.Mesh;
+  private cue = new Panel(0.075, 0.014, 0x2a3033);
+  private cueT: Text;
   private steps: Step[];
   private index = 0;
   private ctx: StepCtx;
@@ -135,10 +143,10 @@ export class Tutorial {
 
     const C = this.callout;
     C.addRect(0, 0, 0.0025, C.height, BRAND.accentGreen, 0.0006);
-    this.stepT = C.addText({ text: '', size: 0.0045, font: 'mono', color: BRAND.sage, position: [0.007, -0.006, 0] });
-    this.titleT = C.addText({ text: '', size: 0.0066, font: 'semibold', color: BRAND.cbreGreen, maxWidth: 0.115, position: [0.007, -0.0135, 0] });
-    this.bodyT = C.addText({ text: '', size: 0.0047, font: 'body', color: UI.text, maxWidth: 0.116, lineHeight: 1.3, position: [0.007, -0.0235, 0] });
-    this.skipBtn = C.addButton({ id: 'skip', label: 'Skip step', x: 0.093, y: -0.0605, w: 0.031, h: 0.0085, size: 0.0038, onClick: () => this.advance() });
+    this.stepT = C.addText({ text: '', size: 0.0046, font: 'mono', color: BRAND.sage, position: [0.007, -0.006, 0] });
+    this.titleT = C.addText({ text: '', size: 0.0074, font: 'semibold', color: BRAND.cbreGreen, maxWidth: 0.115, position: [0.007, -0.0135, 0] });
+    this.bodyT = C.addText({ text: '', size: 0.0053, font: 'body', color: UI.text, maxWidth: 0.117, lineHeight: 1.28, position: [0.007, -0.0245, 0] });
+    this.skipBtn = C.addButton({ id: 'skip', label: 'Skip step', x: 0.093, y: -0.0765, w: 0.031, h: 0.0085, size: 0.0040, onClick: () => this.advance() });
 
     this.line = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
@@ -151,7 +159,11 @@ export class Tutorial {
       new THREE.MeshBasicMaterial({ color: BRAND.accentGreen, transparent: true, depthTest: false, side: THREE.DoubleSide }),
     );
     this.ring.renderOrder = 1003;
-    d.scene.add(this.line, this.ring);
+    this.cue.addRect(0, 0, 0.0018, 0.014, BRAND.accentGreen, 0.0006);
+    this.cueT = this.cue.addText({ text: '', size: 0.0058, font: 'semibold', color: 0xffffff, anchorY: 'middle', position: [0.005, -0.007, 0] });
+    this.cue.setOverlay(true);
+    this.cue.visible = false;
+    d.scene.add(this.line, this.ring, this.cue);
     d.scene.add(this.callout);
 
     const ev = d.ctl.events, rev = d.ctl.robot.events;
@@ -206,6 +218,7 @@ export class Tutorial {
     this.callout.visible = show;
     this.line.visible = show && !!this.current;
     this.ring.visible = show && !!this.current;
+    this.cue.visible = show && !!this.current && !this.d.isDesktop();
   }
 
   update(dt: number) {
@@ -243,23 +256,32 @@ export class Tutorial {
       this.callout.position.copy(this.d.desktopCalloutPos); // beside the docked pendant
       this.callout.quaternion.identity();
       this.callout.scale.setScalar(1.3);
-    } else {
-      if (this.callout.parent !== this.d.scene) { this.d.scene.add(this.callout); this.callout.setOverlay(false); this.callout.scale.setScalar(1); }
-      const head = this.d.camera.getWorldPosition(tmpH);
-      const base = anchorPos ?? this.d.xr.grips.left?.getWorldPosition(tmpB) ?? head;
-      // Float above and toward the head from the anchor, facing the viewer.
-      tmpB.copy(base).lerp(head, 0.25);
-      tmpB.y += 0.09;
-      this.callout.position.copy(tmpB);
-      this.callout.lookAt(head);
-      // lookAt points +Z at the head; shift so the panel's centre (not its corner) sits at the spot.
-      this.callout.translateX(-this.callout.width / 2);
-      this.callout.translateY(this.callout.height / 2);
+    } else if (this.callout.parent !== this.d.boardMount) {
+      this.d.boardMount.add(this.callout);
+      this.callout.setOverlay(false);
+      this.callout.position.copy(this.d.boardPos);
+      this.callout.quaternion.identity();
+      this.callout.scale.setScalar(this.d.boardScale);
     }
     this.callout.updateMatrixWorld(true);
 
     if (anchorPos && step) {
-      const from = this.callout.localToWorld(tmpF.set(this.callout.width / 2, -this.callout.height, 0.001));
+      let from: THREE.Vector3;
+      if (desktop) {
+        from = this.callout.localToWorld(tmpF.set(this.callout.width / 2, -this.callout.height, 0.001));
+      } else {
+        // Short cue label just above the control, facing the head; leader drops to the button.
+        const head = this.d.camera.getWorldPosition(tmpH);
+        setText(this.cueT, step.cue);
+        tmpB.copy(anchorPos).lerp(head, 0.12);
+        tmpB.y += 0.045;
+        this.cue.position.copy(tmpB);
+        this.cue.lookAt(head);
+        this.cue.translateX(-0.0375);
+        this.cue.translateY(0.007);
+        this.cue.updateMatrixWorld(true);
+        from = this.cue.localToWorld(tmpF.set(0.0375, -0.014, 0.001));
+      }
       const pos = this.line.geometry.attributes.position as THREE.BufferAttribute;
       pos.setXYZ(0, from.x, from.y, from.z);
       pos.setXYZ(1, anchorPos.x, anchorPos.y, anchorPos.z);

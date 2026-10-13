@@ -3,7 +3,10 @@ import type { Text } from 'troika-three-text';
 import { TextGroup, type TextOpts } from '../text';
 import { BRAND } from '../../config/brand';
 
-// Retained-mode UI panel in world units (metres). Origin at the panel's
+// Retained-mode UI panel in world units (metres). Layers by z: background 0,
+// rects 0.4 mm, raised rects (markers, chips) 0.6–0.8 mm, text 1.2 mm. Any rect
+// drawn over another rect must use a higher z, or it will z-fight in the headset.
+// Origin at the panel's
 // top-left corner, +X right, −Y down, +Z toward the viewer. All rectangles of
 // a panel share one InstancedMesh, and all text shares one BatchedText per
 // font, so a full panel costs only a few draw calls.
@@ -67,10 +70,11 @@ export class Panel extends THREE.Group {
     return id;
   }
 
+  /** Move/resize a rect. Bounds are not recomputed: rects stay inside the background. */
   setRect(id: number, x: number, y: number, w: number, h: number) {
     const b = this.boxes[id];
     b[0] = x; b[1] = y; b[2] = w; b[3] = h;
-    this.writeRect(id);
+    this.writeRect(id, false);
   }
 
   setRectVisible(id: number, visible: boolean) {
@@ -80,12 +84,12 @@ export class Panel extends THREE.Group {
     this.rects.instanceMatrix.needsUpdate = true;
   }
 
-  private writeRect(id: number) {
+  private writeRect(id: number, bounds = true) {
     const [x, y, w, h, z] = this.boxes[id];
     this.m.makeScale(Math.max(w, 1e-6), Math.max(h, 1e-6), 1).setPosition(x, y, z);
     this.rects.setMatrixAt(id, this.m);
     this.rects.instanceMatrix.needsUpdate = true;
-    this.rects.computeBoundingSphere();
+    if (bounds) this.rects.computeBoundingSphere();
   }
 
   setColor(id: number, color: number) {

@@ -47,7 +47,7 @@ export class PerfHud {
     this.tris = info.render.triangles;
     if (this.acc >= 0.5) {
       this.fps = this.frames / this.acc;
-      const line = `${this.fps.toFixed(0)} fps  ·  worst ${(this.worst * 1000).toFixed(1)} ms  ·  ${this.calls} draws  ·  ${(this.tris / 1000).toFixed(0)}k tris`;
+      const line = `${this.fps.toFixed(0)} fps  ·  worst ${(this.worst * 1000).toFixed(1)} ms  ·  ${this.calls} draws  ·  ${Number.isFinite(this.tris) ? `${(this.tris / 1000).toFixed(0)}k tris` : 'tris n/a'}`;
       if (this.visible) {
         this.el.textContent = line;
         this.xrText.text = line;

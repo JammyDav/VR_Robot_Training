@@ -25,6 +25,12 @@ export interface HudDeps {
 
 const DOCK_DISTANCE = 0.5;
 
+/** Pendant placement on the left controller. Tilt is about grip X: −π/2 = flat, face up. */
+export const PENDANT_MOUNT = {
+  offset: [0.045, 0.015, -0.075] as [number, number, number],
+  tilt: -1.15, // ≈ 24° up from flat, toward the user
+};
+
 /**
  * Owns every interactive surface: the pendant (on the left controller in XR,
  * docked on screen on desktop), the controller map, tutorial callouts, the
@@ -49,10 +55,12 @@ export function createHud(d: HudDeps) {
   pendantRig.add(pendant.panel, map.panel);
   map.panel.position.set(0, MAP_H + 0.006, 0);
 
-  // XR mount on the left grip: above the controller, tilted toward the face.
+  // XR mount on the left grip (grip space: +X right, +Y up, −Z forward).
+  // The pendant lies nearly flat like a tablet, to the RIGHT of the controller,
+  // its far edge just ahead of the controller ring, sloping gently toward the face.
   const xrMount = new THREE.Group();
-  xrMount.position.set(0, 0.035, -0.02);
-  xrMount.rotation.set(-0.95, 0, 0);
+  xrMount.position.set(...PENDANT_MOUNT.offset);
+  xrMount.rotation.set(PENDANT_MOUNT.tilt, 0, 0);
   // Desktop dock: child of the camera, bottom-left of the view.
   const dock = new THREE.Group();
   camera.add(dock);
@@ -62,6 +70,11 @@ export function createHud(d: HudDeps) {
     isDesktop: () => !xr.isPresenting(),
     desktopDock: dock,
     desktopCalloutPos: new THREE.Vector3(PENDANT_W + 0.012, 0, 0),
+    // VR: left half of the whiteboard, below the header. The right half is partly
+    // hidden behind the arm from the operator spot.
+    boardMount: d.boards.whiteboard,
+    boardPos: new THREE.Vector3(0.0, -0.15, 0.002),
+    boardScale: 7.0, // ≈ 0.9 × 0.6 m; body type ≈ 37 mm, legible from the operator spot
   });
 
   // Whiteboard: tutorial toggle in the lower-left of the board.
@@ -122,6 +135,7 @@ export function createHud(d: HudDeps) {
   d.dom.addEventListener('pointerleave', () => mouse.set(-10, -10));
 
   let mode: 'xr' | 'desktop' | null = null;
+  let panelClock = 1;
   let laidOutAspect = NaN;
   const layoutDock = () => {
     if (!Number.isFinite(camera.aspect) || camera.aspect <= 0) return; // hidden tab at load: no size yet
@@ -151,7 +165,7 @@ export function createHud(d: HudDeps) {
         mode = want;
         if (inXR) {
           xrMount.add(pendantRig);
-          pendantRig.position.set(-PENDANT_W / 2, PENDANT_H, 0);
+          pendantRig.position.set(0, 0, 0); // panel top-left at the mount; extends right and toward the user
           pendantRig.scale.setScalar(1);
           pendant.panel.setOverlay(false);
           map.panel.setOverlay(false);
@@ -205,8 +219,13 @@ export function createHud(d: HudDeps) {
       wbToggle.setLabel(tutorial.enabled ? 'Tutorial: ON' : 'Tutorial: OFF');
       wbToggle.setActive(tutorial.enabled);
 
-      pendant.update(dt);
-      if (mapOn) map.update();
+      // Panel text and bars at 30 Hz: plenty for a readout, and it keeps CPU free for 72–90 fps.
+      panelClock += dt;
+      if (panelClock >= 1 / 30) {
+        pendant.update(panelClock);
+        if (mapOn) map.update();
+        panelClock = 0;
+      }
       tutorial.update(dt);
     },
   };
