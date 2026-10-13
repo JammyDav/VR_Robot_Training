@@ -108,6 +108,14 @@ export class PendantLogic {
         if (!ctl.rotation) return { kind: 'cartesian', frame, lin: [ly, -lx, ry], ang: [0, 0, 0] };
         return { kind: 'cartesian', frame, lin: [0, 0, 0], ang: [lx, ly, -rx] };
       }
+      case 'point': {
+        // Left stick up/down picks the taught point; hold A (with the enabling device) to move to it.
+        if (Math.abs(inp.ls.y) > LATCH_ON && !this.axisLatch) {
+          this.axisLatch = true;
+          ctl.points.select(inp.ls.y > 0 ? -1 : 1);
+        } else if (Math.abs(inp.ls.y) < LATCH_OFF) this.axisLatch = false;
+        return { kind: 'none' };
+      }
       default:
         return { kind: 'none' };
     }

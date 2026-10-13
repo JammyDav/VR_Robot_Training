@@ -52,6 +52,7 @@ export interface TutorialDeps {
   ctl: Controller;
   xr: XRRig;
   pendant: Panel;
+  board: Panel;
   camera: THREE.Camera;
   scene: THREE.Scene;
   isDesktop: () => boolean;
@@ -64,8 +65,9 @@ export interface TutorialDeps {
   boardScale: number;
 }
 
-export function defaultSteps(p: Panel): Step[] {
+export function defaultSteps(p: Panel, board: Panel): Step[] {
   const pa = (id: string): PanelAnchor => ({ kind: 'panel', panel: p, id });
+  const ba = (id: string): PanelAnchor => ({ kind: 'panel', panel: board, id });
   const ca = (hand: 'left' | 'right', component: string): ControllerAnchor => ({ kind: 'controller', hand, component });
   return [
     {
@@ -104,6 +106,34 @@ export function defaultSteps(p: Panel): Step[] {
       done: (c) => c.seen.has('gripper:closed') && c.seen.has('gripper:open'),
     },
     {
+      id: 'record', title: 'Record a point', cue: 'Press A',
+      xr: 'Jog the gripper somewhere clear, then press A. That records a point (a taught pose): the six joint values plus the TCP position. It appears on the program board as p01. Use Rename on the board to give it a meaningful name such as pSafe.',
+      desktop: 'Jog the gripper somewhere clear, then press Enter (or Record point on the program board). That records a point (a taught pose): the six joint values plus the TCP position. Use Rename on the board to name it, e.g. pSafe.',
+      anchor: (d) => (d ? pa('point') : ca('right', 'a-button')),
+      done: (c) => c.seen.has('recorded'),
+    },
+    {
+      id: 'moveTo', title: 'Move to a point', cue: 'Point mode, hold A',
+      xr: 'Jog away a little. Press X until the panel reads Point, flick the left stick to choose a point, then hold the enabling device and hold A. The arm moves there with a MoveJ (each joint takes its own path, all arriving together). Let go of A to stop it.',
+      desktop: 'Jog away a little. Press Tab until the panel reads Point, use W/S to choose a point, then hold Space and hold Enter. The arm moves there with a MoveJ (each joint takes its own path, all arriving together). Release Enter to stop it.',
+      anchor: (d) => (d ? pa('point') : ca('right', 'a-button')),
+      done: (c) => c.seen.has('pointReached'),
+    },
+    {
+      id: 'build', title: 'Build a program', cue: 'Program board',
+      xr: 'On the program board, right of the whiteboard, add three or more steps from the palette, for example MoveJ, Gripper close, MoveJ. Select a card to change its point, approach offset or speed. The VAL3-style view on the right updates as you build.',
+      desktop: 'On the program board (press 4 to see the boards), add three or more steps from the palette, for example MoveJ, Gripper close, MoveJ. Select a card to change its point, approach offset or speed. The VAL3-style view updates as you build.',
+      anchor: () => ba('palette'),
+      done: (c) => c.ctl.program.steps.length >= 3 && c.seen.has('program'),
+    },
+    {
+      id: 'run', title: 'Run it in Manual test', cue: 'MODE, then RUN',
+      xr: 'Press MODE until it reads MANUAL TEST, hold the enabling device and press RUN (on the board or the pendant). Steps highlight as they run; releasing the enabling device holds the arm. A clean run in Manual test validates the program for Local mode.',
+      desktop: 'Press MODE (or M) until it reads MANUAL TEST, hold Space and press RUN on the board or pendant. Steps highlight as they run; releasing Space holds the arm. A clean run in Manual test validates the program for Local mode.',
+      anchor: () => ba('run'),
+      done: (c) => c.seen.has('run:ok'),
+    },
+    {
       id: 'estop', title: 'Emergency stop and reset', cue: 'Hold B for 1 s',
       xr: 'Hold B for one second, or press the red E-STOP on the panel. Everything halts and the beacon flashes red. To recover: release the enabling device, then press RESET on the panel.',
       desktop: 'Hold B for one second, or press Esc or the red E-STOP on the panel. Everything halts and the beacon flashes red. To recover: release Space, then press RESET (or R).',
@@ -133,7 +163,7 @@ export class Tutorial {
   private unsub: Array<() => void> = [];
 
   constructor(private d: TutorialDeps, steps?: Step[]) {
-    this.steps = steps ?? defaultSteps(d.pendant);
+    this.steps = steps ?? defaultSteps(d.pendant, d.board);
     const saved = load();
     this.enabled = saved?.enabled ?? true; // on by default for the first run
     this.index = Math.min(saved?.index ?? 0, this.steps.length);
@@ -172,6 +202,10 @@ export class Tutorial {
       ev.on('speed', () => this.ctx.seen.add('speed')),
       ev.on('estop', (e) => this.ctx.seen.add(e.active ? 'estop:on' : 'estop:off')),
       rev.on('gripper', (e) => this.ctx.seen.add(`gripper:${e.state}`)),
+      d.ctl.points.events.on('recorded', () => this.ctx.seen.add('recorded')),
+      ev.on('pointReached', () => this.ctx.seen.add('pointReached')),
+      d.ctl.program.events.on('changed', () => this.ctx.seen.add('program')),
+      ev.on('runFinished', (e) => { if (e.ok) this.ctx.seen.add('run:ok'); }),
     );
     this.applyVisibility();
   }
@@ -246,7 +280,7 @@ export class Tutorial {
     } else {
       setText(this.stepT, 'TUTORIAL · COMPLETE');
       setText(this.titleT, 'Well done');
-      setText(this.bodyT, 'You have used every pendant control covered so far. Turn the tutorial back on from the whiteboard at any time.');
+      setText(this.bodyT, 'You have used every pendant control and run a program. Carry on with the challenges on the whiteboard; turn the tutorial back on from there at any time.');
     }
 
     // Place the callout.
@@ -273,12 +307,14 @@ export class Tutorial {
         // Short cue label just above the control, facing the head; leader drops to the button.
         const head = this.d.camera.getWorldPosition(tmpH);
         setText(this.cueT, step.cue);
+        const k = Math.max(1, head.distanceTo(anchorPos) / 0.7);
         tmpB.copy(anchorPos).lerp(head, 0.12);
-        tmpB.y += 0.045;
+        tmpB.y += 0.045 * k;
         this.cue.position.copy(tmpB);
+        this.cue.scale.setScalar(k);
         this.cue.lookAt(head);
-        this.cue.translateX(-0.0375);
-        this.cue.translateY(0.007);
+        this.cue.translateX(-0.0375 * k);
+        this.cue.translateY(0.007 * k);
         this.cue.updateMatrixWorld(true);
         from = this.cue.localToWorld(tmpF.set(0.0375, -0.014, 0.001));
       }
@@ -289,7 +325,8 @@ export class Tutorial {
       this.ring.position.copy(anchorPos);
       this.ring.quaternion.copy(this.d.camera.getWorldQuaternion(tmpQ));
       const pulse = 0.5 + 0.5 * Math.sin(this.t * 5);
-      this.ring.scale.setScalar((desktop ? 1.6 : 1) * (1 + 0.5 * pulse));
+      const far = Math.max(1, this.d.camera.getWorldPosition(tmpH).distanceTo(anchorPos) / 0.7);
+      this.ring.scale.setScalar((desktop ? 1.6 : 1) * far * (1 + 0.5 * pulse));
       (this.ring.material as THREE.MeshBasicMaterial).opacity = 0.45 + 0.5 * (1 - pulse);
       this.line.visible = true;
       this.ring.visible = true;

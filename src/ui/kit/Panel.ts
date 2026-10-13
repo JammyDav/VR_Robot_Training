@@ -23,7 +23,7 @@ export const UI = {
   disabledText: 0xa7aeaf,
 } as const;
 
-const MAX_RECTS = 160;
+const DEFAULT_MAX_RECTS = 160;
 const unit = new THREE.PlaneGeometry(1, 1).translate(0.5, -0.5, 0); // top-left anchored
 
 export interface Widget {
@@ -47,12 +47,12 @@ export class Panel extends THREE.Group {
   private m = new THREE.Matrix4();
   private c = new THREE.Color();
 
-  constructor(width: number, height: number, background: number = UI.bg) {
+  constructor(width: number, height: number, background: number = UI.bg, maxRects = DEFAULT_MAX_RECTS) {
     super();
     this.width = width;
     this.height = height;
     const mat = new THREE.MeshBasicMaterial({ toneMapped: false });
-    this.rects = new THREE.InstancedMesh(unit, mat, MAX_RECTS);
+    this.rects = new THREE.InstancedMesh(unit, mat, maxRects);
     this.rects.count = 0;
     this.rects.frustumCulled = false;
     this.add(this.rects);
@@ -166,6 +166,7 @@ export class Button implements Widget {
       anchorX: 'center', anchorY: 'middle', position: [o.x + o.w / 2, o.y - o.h / 2, 0],
     });
     this.onClick = o.onClick;
+    this.labelText = o.label;
   }
 
   onHover(on: boolean) {
@@ -180,14 +181,31 @@ export class Button implements Widget {
   }
 
   setEnabled(on: boolean) {
-    if (on === this.enabled) return;
-    this.enabled = on;
+    this.enabledWhenShown = on;
+    const eff = on && this.visible;
+    if (eff === this.enabled) return;
+    this.enabled = eff;
     this.refresh();
   }
 
   setLabel(s: string) {
-    if (this.label.text !== s) { this.label.text = s; this.label.sync(); }
+    this.labelText = s;
+    const shown = this.visible ? s : '';
+    if (this.label.text !== shown) { this.label.text = shown; this.label.sync(); }
   }
+
+  /** Show / hide. Hidden buttons draw nothing and cannot be clicked. */
+  setVisible(on: boolean) {
+    if (on === this.visible) return;
+    this.visible = on;
+    this.panel.setRectVisible(this.rect, on);
+    this.setLabel(this.labelText);
+    this.enabled = on && this.enabledWhenShown;
+    this.refresh();
+  }
+  visible = true;
+  private labelText = '';
+  private enabledWhenShown = true;
 
   setBaseColor(c: number) {
     this.baseColor = c;

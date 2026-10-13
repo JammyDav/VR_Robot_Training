@@ -6,7 +6,10 @@ import { TextGroup } from '../ui/text';
 import { BRAND, TEAM_NAME } from '../config/brand';
 
 export interface BoardHandles {
-  /** Writing surface frames: origin top-left of the usable area, +X right, -Y down, +Z out of the wall. */
+  /**
+   * Mount points, +X right, −Y down, +Z out of the wall. Whiteboard: top-left of
+   * the writing area. Program board: top-left corner of the display surface.
+   */
   whiteboard: THREE.Group;
   programBoard: THREE.Group;
 }
@@ -50,15 +53,8 @@ export function buildBoards(root: THREE.Object3D, M: Materials): BoardHandles {
   const pb = group(root, BOARDS.programBoardX, BOARDS.y, wallZ + 0.02, 0, 'programBoard');
   mesh(box(W + 0.04, H + 0.04, 0.035), M.frameDark, pb, 0, 0, 0);
   mesh(box(W, H, 0.004), M.paper, pb, 0, 0, 0.0185);
-  mesh(box(W, 0.1, 0.002), M.brandGreen, pb, 0, H / 2 - 0.05, 0.0215);
-  mesh(box(0.004, H - 0.16, 0.001), M.instrumentGrey, pb, -W / 2 + 0.66, -0.05, 0.021);
-  const pbSurface = group(pb, -W / 2 + 0.04, H / 2 - 0.02, 0.023);
-  const pbText = new TextGroup();
-  pbText.userData.dynamic = true;
-  pbSurface.add(pbText);
-  pbText.addText({ text: 'Program', size: 0.045, font: 'semibold', color: BRAND.white, position: [0, -0.008, 0] });
-  pbText.addText({ text: 'SEQUENCE', size: 0.022, font: 'mono', color: BRAND.darkGrey, position: [0, -0.115, 0] });
-  pbText.addText({ text: 'VAL3-STYLE VIEW', size: 0.022, font: 'mono', color: BRAND.darkGrey, position: [0.66, -0.115, 0] });
+  // Live content (programBoard.ts) mounts at the surface's top-left corner.
+  const pbSurface = group(pb, -W / 2, H / 2, 0.0205);
 
   return { whiteboard: wbSurface, programBoard: pbSurface };
 }

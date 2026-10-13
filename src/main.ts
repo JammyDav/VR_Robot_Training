@@ -17,6 +17,8 @@ import { emptyInput } from './input/PendantInput';
 import { readXRInput, xrControllersReady } from './input/xrInput';
 import { DesktopInput } from './input/desktopInput';
 import { createHud } from './ui/hud';
+import { createCellView } from './scene/cellView';
+import { bindPersistence, exportCell, importCell } from './core/persistence';
 import { PerfHud } from './debug/perfHud';
 
 const container = document.getElementById('app')!;
@@ -68,16 +70,24 @@ rig.triad.visible = false;
 const desktop = setupDesktopCamera(camera, renderer.domElement);
 const xr = setupXR(renderer, scene, camera, vrButton);
 const perf = new PerfHud(document.getElementById('perf')!, camera);
-const logic = new PendantLogic(ctl);
+bindPersistence(ctl);
+const logic = new PendantLogic(ctl, {
+  recordPoint: () => ctl.recordPoint(),
+  moveToPoint: (held) => ctl.moveToPoint(held),
+});
+const cellView = createCellView(scene, ctl, dispenser, reader);
 const desktopInput = new DesktopInput();
 const input = emptyInput();
-const hud = createHud({ ctl, logic, xr, rig, boards, scene, camera, dom: renderer.domElement });
+const hud = createHud({
+  ctl, logic, xr, rig, boards, scene, camera, dom: renderer.domElement,
+  board: { exportCell: () => exportCell(ctl), importCell: () => { void importCell(ctl); } },
+});
 
 // Desktop shortcuts for panel keys (the same actions are on the pendant panel).
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.target instanceof HTMLInputElement) return;
   if (e.code === 'Escape') ctl.triggerEstop();
-  else if (e.code === 'KeyR') ctl.resetEstop();
+  else if (e.code === 'KeyR') ctl.reset();
   else if (e.code === 'KeyM') ctl.cycleMode();
   else if (e.code === 'KeyT') rig.triad.visible = !rig.triad.visible;
   else if (e.code === 'KeyG') ctl.toggleGripper();
@@ -137,6 +147,7 @@ renderer.setAnimationLoop(() => {
   logic.update(dt, input);
   ctl.update(dt);
   rig.update(robot.q, robot.gripper.halfGap);
+  cellView.update(dt, camera);
   if (shadowWatch.changed()) renderer.shadowMap.needsUpdate = true;
 
   if (!xr.isPresenting()) desktop.controls.update();

@@ -35,8 +35,13 @@ export class PendantPanel {
   private trackW = 0.058;
   private estopPulse = 0;
 
+  private notice: { text: string; until: number } | null = null;
+  private clock = 0;
+
   constructor(private ctl: Controller, private logic: PendantLogic, private act: PendantActions) {
     const P = this.panel;
+    // Refusals ("release the enabling device first" etc.) show briefly in the context strip.
+    ctl.events.on('denied', (e) => { this.notice = { text: e.reason, until: this.clock + 3 }; });
     const W = PENDANT_W, H = PENDANT_H, pad = 0.008;
 
     // Header.
@@ -71,18 +76,19 @@ export class PendantPanel {
     // TCP pose + selected point.
     this.t.pose = P.addText({ text: '', size: 0.0052, font: 'mono', color: UI.text, lineHeight: 1.3, position: [pad, -0.131, 0] });
     this.t.point = P.addText({ text: '', size: 0.0052, font: 'medium', color: BRAND.sage, position: [pad, -0.1465, 0] });
+    P.addAnchor('point', pad - 0.002, -0.144, 0.13, 0.009);
 
     // Right column: function keys.
     const bx = 0.149, bw = 0.0445, bh = 0.0155, gx = 0.004, gy = 0.0035;
     const keys: Array<[string, string, () => void]> = [
       ['mode', 'MODE', () => ctl.cycleMode()],
       ['jog', 'JOG', () => ctl.cycleJogMode()],
-      ['rot', 'ROTATE', () => ctl.toggleRotation()],
-      ['grip', 'GRIPPER', () => ctl.toggleGripper()],
+      ['rot', 'ROTATE', () => (ctl.mode === 'manual' ? ctl.toggleRotation() : ctl.runProgram())],
+      ['grip', 'GRIPPER', () => (ctl.mode === 'manual' ? ctl.toggleGripper() : ctl.pauseProgram())],
       ['spdDown', 'SPEED −', () => ctl.stepSpeed(-1)],
       ['spdUp', 'SPEED +', () => ctl.stepSpeed(1)],
-      ['tcp', 'TCP', () => act.toggleTriad()],
-      ['map', 'MAP', () => act.toggleMap()],
+      ['tcp', 'TCP', () => (ctl.mode === 'manual' ? act.toggleTriad() : ctl.stepProgram())],
+      ['map', 'MAP', () => (ctl.mode === 'manual' ? act.toggleMap() : ctl.abortProgram())],
     ];
     keys.forEach(([id, label, fn], i) => {
       const col = i % 2, row = Math.floor(i / 2);
@@ -99,7 +105,7 @@ export class PendantPanel {
     this.estopDisc.position.set(bx + 0.021, ey - 0.021, 0.0009);
     P.add(this.estopDisc);
     P.addText({ text: 'E-STOP', size: 0.0052, font: 'semibold', color: 0xffffff, anchorX: 'center', anchorY: 'middle', position: [bx + 0.021, ey - 0.021, 0.0004] });
-    this.b.reset = P.addButton({ id: 'reset', label: 'RESET', x: bx + 0.0465, y: ey, w: 0.0445, h: 0.042, size: 0.0058, onClick: () => ctl.resetEstop() });
+    this.b.reset = P.addButton({ id: 'reset', label: 'RESET', x: bx + 0.0465, y: ey, w: 0.0445, h: 0.042, size: 0.0058, onClick: () => ctl.reset() });
 
     // Context strip.
     this.contextRect = P.addRect(0, -H + 0.022, W, 0.022, UI.surface);
@@ -109,7 +115,19 @@ export class PendantPanel {
 
   private estopDisc: THREE.Mesh;
 
+  private programHint() {
+    const c = this.ctl, r = c.runner;
+    const n = c.program.steps.length;
+    const step = r.active ? ` · step ${Math.min(r.index + 1, n)}/${n}` : '';
+    if (r.state === 'running' && c.mode === 'test' && c.enable !== 'enabled') return `Holding${step}: press the enabling device to continue.`;
+    if (r.state === 'running') return `Running${step}. PAUSE, STEP or ABORT.`;
+    if (r.state === 'paused') return `Paused${step}. RESUME or STEP.`;
+    if (c.mode === 'test') return c.validated ? 'Manual test: program validated. Hold the enabling device and RUN.' : 'Manual test: hold the enabling device and press RUN. A clean run validates.';
+    return c.validated ? 'Local: validated, RUN needs no enabling device.' : 'Local: not validated, hold the enabling device to RUN.';
+  }
+
   update(dt: number) {
+    this.clock += dt;
     const ctl = this.ctl, r = ctl.robot;
     setText(this.t.mode, MODE_LABEL[ctl.mode]);
     const rotatable = ctl.jogMode === 'frame' || ctl.jogMode === 'tool';
@@ -137,16 +155,41 @@ export class PendantPanel {
     setText(this.t.point, `Point: ${pt ?? '— none taught'}`);
 
     // Buttons reflect state.
-    this.b.rot.setEnabled(rotatable);
-    this.b.rot.setActive(rotatable && ctl.rotation);
-    this.b.grip.setEnabled(ctl.mode === 'manual' && !ctl.estop);
-    this.b.grip.setLabel(r.gripper.isOpen ? 'CLOSE GRIP' : 'OPEN GRIP');
+    const prog = ctl.mode !== 'manual';
+    const rs = ctl.runner.state;
+    if (prog) {
+      const canStart = !ctl.estop && !ctl.fault && rs !== 'running';
+      this.b.rot.setLabel(rs === 'paused' ? 'RESUME' : 'RUN');
+      this.b.rot.setEnabled(canStart);
+      this.b.rot.setActive(rs === 'running');
+      this.b.grip.setLabel('PAUSE');
+      this.b.grip.setEnabled(rs === 'running');
+      this.b.tcp.setLabel('STEP');
+      this.b.tcp.setEnabled(canStart);
+      this.b.tcp.setActive(false);
+      this.b.map.setLabel('ABORT');
+      this.b.map.setEnabled(ctl.runner.active);
+      this.b.map.setActive(false);
+    } else {
+      this.b.rot.setLabel('ROTATE');
+      this.b.rot.setEnabled(rotatable);
+      this.b.rot.setActive(rotatable && ctl.rotation);
+      this.b.grip.setEnabled(!ctl.estop && !ctl.fault);
+      this.b.grip.setLabel(r.gripper.isOpen ? 'CLOSE GRIP' : 'OPEN GRIP');
+      this.b.tcp.setLabel('TCP');
+      this.b.tcp.setEnabled(true);
+      this.b.map.setLabel('MAP');
+      this.b.map.setEnabled(true);
+    }
     this.b.spdDown.setEnabled(ctl.speedOverride > 0.011);
     this.b.spdUp.setEnabled(ctl.speedOverride < 0.999);
-    this.b.tcp.setActive(this.act.triadVisible());
-    this.b.map.setActive(this.act.mapVisible());
-    this.b.reset.setEnabled(ctl.estop);
-    this.b.reset.setLabel(ctl.estop && ctl.enable !== 'released' ? 'RELEASE\nGRIP' : 'RESET');
+    if (!prog) {
+      this.b.tcp.setActive(this.act.triadVisible());
+      this.b.map.setActive(this.act.mapVisible());
+    }
+    const latched = ctl.estop || !!ctl.fault;
+    this.b.reset.setEnabled(latched);
+    this.b.reset.setLabel(latched && ctl.enable !== 'released' ? 'RELEASE\nGRIP' : 'RESET');
 
     // E-stop disc darkens when latched (pressed in) and pulses the RESET key.
     this.estopPulse += dt;
@@ -157,15 +200,19 @@ export class PendantPanel {
     let text = this.act.contextHint();
     let bg: number = UI.surface, fg: number = UI.text;
     const info = ctl.jogInfo;
-    if (ctl.mode !== 'manual') { text = 'Jogging is only available in Manual. Press MODE to change.'; }
+    if (ctl.mode !== 'manual') { text = this.programHint(); }
     else if (info.nearSingular) { text = 'Near wrist singularity — the arm slows here. Move J5 away from 0°.'; bg = 0xfbefd8; fg = 0x8a5a06; }
     else if (info.blocked.length) { text = `J${info.blocked[0] + 1} is at its limit.`; bg = 0xfbefd8; fg = 0x8a5a06; }
     else if (info.capped) { text = 'TCP speed limited to 250 mm/s (manual reduced speed).'; }
+    if (this.notice && this.clock < this.notice.until) { text = this.notice.text; bg = 0xfbefd8; fg = 0x8a5a06; }
     if (this.logic.holdProgress.estop > 0) { text = `Hold B for emergency stop… ${Math.round(this.logic.holdProgress.estop * 100)}%`; bg = 0xf6d6d3; fg = 0x8a2a24; }
     if (ctl.estop) {
       text = ctl.enable === 'released' ? 'EMERGENCY STOP. Find the cause, then press RESET.' : 'EMERGENCY STOP. Release the enabling device, then press RESET.';
       bg = SIGNAL.estop; fg = 0xffffff;
-    } else if (ctl.fault) { text = `FAULT: ${ctl.fault}`; bg = SIGNAL.fault; fg = 0xffffff; }
+    } else if (ctl.fault) {
+      text = `FAULT: ${ctl.fault}${ctl.enable === 'released' ? ' Press RESET.' : ' Release the enabling device, then RESET.'}`;
+      bg = SIGNAL.fault; fg = 0xffffff;
+    } else if (ctl.recovering) { text = 'Recovering from a collision: jog the arm clear.'; bg = 0xfbefd8; fg = 0x8a5a06; }
     this.panel.setColor(this.contextRect, bg);
     setText(this.t.context, text, fg);
   }

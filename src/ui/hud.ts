@@ -4,6 +4,7 @@ import { Pointer, panelTarget } from './kit/Pointer';
 import { PendantPanel, PENDANT_W, PENDANT_H } from './pendantPanel';
 import { ControllerMap, MAP_H } from './controllerMap';
 import { Tutorial } from './tutorial';
+import { ProgramBoard, type BoardActions } from './programBoard';
 import { RayVisual } from '../xr/ray';
 import { pulse, HAPTIC } from '../fx/haptics';
 import type { Controller } from '../core/Controller';
@@ -21,6 +22,7 @@ export interface HudDeps {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   dom: HTMLElement;
+  board: BoardActions;
 }
 
 const DOCK_DISTANCE = 0.5;
@@ -45,7 +47,7 @@ export function createHud(d: HudDeps) {
     toggleMap: () => { mapOn = !mapOn; },
     triadVisible: () => rig.triad.visible,
     mapVisible: () => mapOn,
-    selectedPoint: () => null,
+    selectedPoint: () => (ctl.points.current ? `${ctl.points.current.name}  (${ctl.points.selected + 1}/${ctl.points.points.length})` : null),
     contextHint: () => hint(ctl, xr.isPresenting()),
   });
   const map = new ControllerMap(ctl, () => !xr.isPresenting());
@@ -65,8 +67,12 @@ export function createHud(d: HudDeps) {
   const dock = new THREE.Group();
   camera.add(dock);
 
+  // Program board on the wall right of the whiteboard.
+  const programBoard = new ProgramBoard(ctl, d.board);
+  d.boards.programBoard.add(programBoard.panel);
+
   const tutorial = new Tutorial({
-    ctl, xr, pendant: pendant.panel, camera, scene,
+    ctl, xr, pendant: pendant.panel, board: programBoard.panel, camera, scene,
     isDesktop: () => !xr.isPresenting(),
     desktopDock: dock,
     desktopCalloutPos: new THREE.Vector3(PENDANT_W + 0.012, 0, 0),
@@ -98,6 +104,7 @@ export function createHud(d: HudDeps) {
   pointer.add(panelTarget(map.panel));
   pointer.add(panelTarget(tutorial.callout));
   pointer.add(panelTarget(wbPanel));
+  pointer.add(panelTarget(programBoard.panel));
   pointer.add({
     object: rig.gripperProxy,
     enabled: () => !ctl.estop,
@@ -156,7 +163,7 @@ export function createHud(d: HudDeps) {
   const raycaster = new THREE.Raycaster();
 
   return {
-    pendant, map, tutorial, pointer,
+    pendant, map, tutorial, pointer, programBoard,
     toggleTutorial: () => tutorial.toggle(),
     update(dt: number, rTriggerDown: boolean) {
       const inXR = xr.isPresenting();
@@ -223,6 +230,7 @@ export function createHud(d: HudDeps) {
       panelClock += dt;
       if (panelClock >= 1 / 30) {
         pendant.update(panelClock);
+        programBoard.update();
         if (mapOn) map.update();
         panelClock = 0;
       }
@@ -237,7 +245,7 @@ function hint(ctl: Controller, xr: boolean): string {
     case 'joint': return `${k('Left stick up/down', 'W/S')} select axis · ${k('right stick left/right', 'Left/Right arrows')} Move− / Move+`;
     case 'frame': return ctl.rotation ? `Rotate about base axes: ${k('left stick', 'WASD')} Rx / Ry · ${k('right stick left/right', 'Left/Right arrows')} Rz` : `Base frame: ${k('left stick', 'WASD')} X / Y · ${k('right stick up/down', '↑ ↓')} Z`;
     case 'tool': return ctl.rotation ? `Rotate about tool axes: ${k('left stick', 'WASD')} Rx / Ry · ${k('right stick left/right', 'Left/Right arrows')} Rz` : `Tool frame: ${k('left stick', 'WASD')} X / Y · ${k('right stick up/down', '↑ ↓')} Z (approach)`;
-    case 'point': return 'Point mode: teach points first (next stage).';
+    case 'point': return ctl.points.points.length ? `${k('Left stick up/down', 'W/S')} choose point · hold ${k('A', 'Enter')} + enabling device: move to it` : 'Point mode: teach a point first (A in Joint, Frame or Tool).';
   }
 }
 

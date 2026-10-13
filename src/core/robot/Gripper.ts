@@ -23,6 +23,12 @@ export class Gripper {
   close() { if (this.state !== 'closed') this.state = 'closing'; }
   toggle() { if (this.isOpen) this.close(); else this.open(); }
 
+  /** Freeze the jaws where they are (E-stop / fault). */
+  halt() {
+    if (this.state === 'closing') this.state = 'closed';
+    else if (this.state === 'opening') this.state = 'open';
+  }
+
   step(dt: number) {
     this.justFinished = null;
     if (this.state === 'opening') {

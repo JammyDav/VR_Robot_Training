@@ -2,7 +2,7 @@
 
 A WebXR training simulation of a six-axis TX2-60-class arm moving SLAS-format microplates from a dispenser nest to a plate-reader tray. It is built for the Meta Quest 3 browser and also works on a desktop with keyboard and mouse.
 
-> **Status: Stage 4 of 6.** Done so far: the lab, the robot, the gripper, the deadman, Joint/Frame/Tool jogging with IK, the speed cap, E-stop and the beacon, the pendant panel, the right-hand ray, the controller map and the guided tutorial. Points, programming and challenges come in later stages.
+> **Status: Stage 5 of 6.** Built so far: the lab, the robot, the pendant, IK jogging, safety, and the tutorial. This stage adds taught points, Point-mode moves, the program board (step sequence plus VAL3-style view), program execution, plate handling with seat tolerance, and faults (collision, misseat, misaligned grip, release outside a nest, tray interlock). Stage 6 adds the whiteboard challenges, audio and polish.
 
 ## Live build
 
@@ -93,7 +93,8 @@ It shows:
 | Reset E-stop | Panel **RESET** (enabling device released) | Click RESET, or **R** |
 | Select / press | Right trigger with the ray | Mouse click |
 | Gripper open / close (Manual) | Point the ray at the gripper (it glows) + trigger | Click the gripper, the panel key, or **G** |
-| Record point / move to point | Right **A** (Stage 5) | **Enter** (Stage 5) |
+| Record point (Joint/Frame/Tool) | Right **A** | **Enter**, or *Record point* on the board |
+| Point mode: choose point / move to it | Left stick up/down · hold right **A** with the enabling device | **W/S** · hold **Enter** with Space |
 | Tutorial on / off | Whiteboard buttons | Whiteboard buttons or **H** |
 
 The Frame axes are the robot base frame. **+X** points away from you, **+Y** to your left, and **+Z** up. The Tool axes follow the gripper, with **+Z** along the approach direction.
@@ -108,15 +109,84 @@ Beacon: **amber** = Manual or Manual test, **green** = Local, **red** (flashing)
 
 On first run, a step-by-step tutorial appears. Each callout has a leader line and a pulsing marker on the control it describes. In VR the marker sits on the real controller button; on desktop it sits on the panel element. Each step advances only when you actually do the action; there is no timer. Every callout also has a Skip button. Progress is saved in `localStorage`, and the whiteboard has **Tutorial: ON/OFF** and **Restart tutorial** buttons.
 
-Steps so far:
+Steps:
 1. Enabling device
 2. Jog mode
 3. Jog an axis
 4. Speed override
 5. Gripper
-6. E-stop and reset
+6. Record a point
+7. Move to a point
+8. Build a program
+9. Run it in Manual test
+10. E-stop and reset
 
-Stage 5 adds recording a point, moving to a point, building a program and running it.
+## Teaching and programming
+
+### Taught points
+
+Each point stores the six joint values and the derived TCP pose (X Y Z in mm, Rx Ry Rz in °) in the robot base ("world") frame, with tool `tGripper`.
+
+- **Recording.** New points get automatic names: `p01`, `p02` and so on.
+- **Board actions.** On the program board you can:
+  - **Rename** a point to one of the suggested names: `pSafe`, `pHome`, `pApproDispenser`, `pDispenser`, `pApproReader`, `pReader`. If another point already has the name you pick, that point gets a fresh `pNN` name.
+  - **Re-teach** a point: overwrite it with the current pose.
+  - **Delete** a point.
+- **Markers.** In Manual mode, small markers show where each taught point is in the cell. The selected one is green.
+- **Saving.** Points and the program save to `localStorage` automatically. **Export** downloads both as JSON. **Import** loads a file on desktop.
+
+### Program board
+
+The program board is on the wall to the right of the whiteboard. Every board control is ray- and mouse-clickable.
+
+- **Sequence.** The program is a list of step cards: MoveJ to point, MoveL to point, Approach point by offset (as a MoveJ or MoveL), Gripper open, Gripper close, Wait, Dispense plate, Reader tray extend, Reader tray retract, and Wait for read.
+- **Editing a step.** Select a card to edit it:
+  - choose its point from a list of taught points
+  - cycle the approach offset (50/100/150/200 mm) or the wait time
+  - switch the approach between MoveJ and MoveL
+  - switch the speed between `mNomSpeed` and `mSlow`
+  - move the card up or down, or delete it
+- **Adding steps.** The palette adds a step after the selected card, or at the end if none is selected.
+- **VAL3-style view.** The right-hand column shows the same program as VAL3-flavoured code, for example `movej(appro(pDispenser, trAppro), tGripper, mNomSpeed)`, `movel`, `waitEndMove()`, `close(tGripper)` and `delay`. The step that is running is highlighted. The code is **generated from the sequence and never parsed**, and the footer says plainly that it is not real VAL3.
+
+### Running a program
+
+- **Controls.** RUN, PAUSE, STEP (one step, then pause) and ABORT are on the board. In Manual test and Local they are also on the pendant: the ROTATE, GRIP, TCP and MAP keys become RUN, PAUSE, STEP and ABORT.
+- **Manual test.** The enabling device must be held. Releasing it holds the arm smoothly, and pressing it again resumes. The TCP is capped at 250 mm/s. A complete run with no faults **validates** the program.
+- **Local.**
+  - A validated program runs at full programmed speed **without** the enabling device.
+  - An unvalidated program still needs the enabling device held.
+  - Any edit to the program, or to a point it uses, clears validation.
+- **Speed descriptors.** `mNomSpeed` is 60 % of each joint's maximum speed, or 500 mm/s for linear moves. `mSlow` is 15 %, or 100 mm/s. Both are scaled by the speed override.
+
+### Plates and faults
+
+**Plates and instruments**
+- Plates use the ANSI/SLAS footprint (127.76 × 85.48 × 14.35 mm), with a chamfered A1 corner and 96 wells. The board's **Plate** button cycles between clear, white and black.
+- **Dispense plate** presents a plate on the dispenser nest after about 2.7 s.
+- The reader tray accepts a plate only when it is extended. Retracting it with a plate on board starts a 4 s read; the status LED pulses, then turns green.
+- **Reset cell** clears all plates and retracts the tray.
+
+**Seat tolerance: ±3 mm and ±3°**
+- A plate gripped and released within tolerance drops flush into the locators.
+- Outside tolerance it comes to rest visibly misseated, and the cell faults.
+- Releasing a plate away from any nest drops it to the surface below, and the cell faults.
+- Closing the gripper on a plate that is out of tolerance faults ("misaligned plate"). Closing on nothing is fine.
+
+**Collision**
+- Each arm link and the gripper body is modelled as a capsule, the fingers as thin capsules, and the held plate by its corners.
+- These are checked every step against the bench top, both instrument bodies, the dispenser stage, the reader tray and the guarding.
+
+**Tray interlock**
+- Retracting the tray while the gripper is inside the tray zone is refused, and the cell faults.
+
+**Fault handling**
+- A fault stops motion, turns the beacon red, and shows its text on the pendant and the board. The plate stays where it is.
+- **RESET** clears the fault once the enabling device is released. After a collision you can then jog the arm clear.
+
+**Program design note**
+- A 180° J1 swing with the arm stretched out reaches past the back guarding, so a working transfer program folds through `pSafe` between the two nests.
+- The canonical program used by the tests is in `tests/helpers.ts`.
 
 ## Project layout
 
@@ -179,5 +249,7 @@ Primary source: Stäubli, *TX2-60 Range* product data sheet, **V17, © 02/2026**
 - Joint jog runs at 10 % of each joint's maximum speed at 100 % override. In Manual, every joint is also held to 25 % of its maximum speed, and the TCP's linear speed is capped at **250 mm/s** (`MANUAL_TCP_CAP_MMPS`).
 - Frame and Tool jogging go up to 250 mm/s and 45 °/s at 100 % override.
 - IK is damped least squares on the 6×6 geometric Jacobian. Angular rows are scaled by 0.25 m. Damping rises as the manipulability √det(JJᵀ) drops below 1.2×10⁻⁴, which is J5 at about 15°, and jog speed is reduced in proportion. Jogging through J5 = 0 slows the arm and does not flip J4 or J6; this is covered by the tests.
+- MoveJ to a point interpolates to the point's taught joint values, so the arm keeps the configuration it was taught in. MoveL and Approach use the pose, solved by IK along the path. MoveL aborts with a fault if the straight line misses by more than 0.8 mm or 0.5°, or if a joint would exceed its maximum speed (a branch change near a singularity).
+- Programs run strictly step by step: each motion completes before the next step starts. That matches the generated `waitEndMove()` calls; real VAL3 motion is asynchronous.
 - Joints that reach a limit during Cartesian jogging are frozen out of the solve, so the TCP may leave the commanded line. The panel reports which joint is at its limit.
 - The gripper is a generic parallel-jaw plate gripper. Its TCP sits 128 mm from the flange face, at the centre between the fingertips.

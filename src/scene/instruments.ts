@@ -94,7 +94,8 @@ export function buildReader(root: THREE.Object3D, M: Materials): ReaderHandles {
   // Front bezel with tray aperture, display and power key.
   // Dark fascia band carrying the tray aperture; white shell above and below.
   mesh(rbox(0.012, 0.07, D - 0.04, 0.005), M.instrumentDark, g, fx + 0.002, trayY, 0);
-  mesh(box(0.004, 0.03, 0.16), M.rubber, g, fx - 0.005, trayY, 0);
+  // Aperture clears tray + plate (plate top is ~20 mm above the carriage).
+  mesh(box(0.004, 0.046, 0.16), M.rubber, g, fx - 0.005, trayY + 0.009, 0);
   mesh(box(0.004, 0.04, 0.08), M.screenGlass, g, fx - 0.005, 0.168, 0.12);
   mesh(cyl(0.008, 0.008, 0.004, 14), M.instrumentGrey, g, fx - 0.005, 0.165, -0.15, 0, 0, Math.PI / 2);
   const led = statusLed(g, fx - 0.006, 0.165, -0.12, 0);
