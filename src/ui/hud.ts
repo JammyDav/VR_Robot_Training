@@ -28,7 +28,7 @@ const DOCK_DISTANCE = 0.5;
 /** Pendant placement on the left controller. Tilt is about grip X: −π/2 = flat, face up. */
 export const PENDANT_MOUNT = {
   offset: [0.045, 0.015, -0.075] as [number, number, number],
-  tilt: -1.15, // ≈ 24° up from flat, toward the user
+  tilt: -1.15 + Math.PI / 4, // ≈ 69° up from the controller's top face: faces the user with a relaxed, flatter wrist
 };
 
 /**
