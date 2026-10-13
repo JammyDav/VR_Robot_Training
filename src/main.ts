@@ -19,6 +19,7 @@ import { DesktopInput } from './input/desktopInput';
 import { createHud } from './ui/hud';
 import { createCellView } from './scene/cellView';
 import { bindPersistence, exportCell, importCell } from './core/persistence';
+import { loadDemo } from './core/cell/demo';
 import { PerfHud } from './debug/perfHud';
 
 const container = document.getElementById('app')!;
@@ -71,6 +72,8 @@ const desktop = setupDesktopCamera(camera, renderer.domElement);
 const xr = setupXR(renderer, scene, camera, vrButton);
 const perf = new PerfHud(document.getElementById('perf')!, camera);
 bindPersistence(ctl);
+// ?demo: preload correctly taught points and the reference transfer program.
+if (new URLSearchParams(location.search).has('demo')) loadDemo(ctl);
 const logic = new PendantLogic(ctl, {
   recordPoint: () => ctl.recordPoint(),
   moveToPoint: (held) => ctl.moveToPoint(held),

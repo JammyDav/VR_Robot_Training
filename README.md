@@ -7,6 +7,8 @@ A WebXR training simulation of a six-axis TX2-60-class arm moving SLAS-format mi
 ## Live build
 
 **https://jammydav.github.io/VR_Robot_Training/** — open in the Quest 3 browser and press **Enter VR**.
+
+Add `?demo` to preload correctly taught points (pSafe, pDispenser, pReader) and the reference transfer program, so you can try execution without teaching: **https://jammydav.github.io/VR_Robot_Training/?demo**. This replaces any saved points and program.
 Every push to `main` rebuilds and redeploys via GitHub Actions (`.github/workflows/deploy.yml`).
 
 ## Setup
