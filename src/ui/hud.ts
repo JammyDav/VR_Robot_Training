@@ -30,8 +30,19 @@ const DOCK_DISTANCE = 0.5;
 /** Pendant placement on the left controller. Tilt is about grip X: −π/2 = flat, face up. */
 export const PENDANT_MOUNT = {
   offset: [0.045, 0.015, -0.075] as [number, number, number],
-  tilt: -1.15 + Math.PI / 4, // ≈ 69° up from the controller's top face: faces the user with a relaxed, flatter wrist
+  // Flat on the controller's top plane by default. `?tilt=<deg>` tips it up
+  // toward the user (e.g. ?tilt=20); the value is remembered on this device.
+  tilt: -Math.PI / 2 + THREE.MathUtils.degToRad(tiltOverrideDeg()),
 };
+
+function tiltOverrideDeg(): number {
+  try {
+    const q = new URLSearchParams(location.search).get('tilt');
+    if (q !== null && Number.isFinite(Number(q))) { localStorage.setItem('tx260.pendantTilt', q); return Number(q); }
+    const saved = localStorage.getItem('tx260.pendantTilt');
+    return saved !== null && Number.isFinite(Number(saved)) ? Number(saved) : 0;
+  } catch { return 0; }
+}
 
 /**
  * Owns every interactive surface: the pendant (on the left controller in XR,

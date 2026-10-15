@@ -8,7 +8,7 @@ A WebXR training simulation of a six-axis TX2-60-class arm moving SLAS-format mi
 
 **https://jammydav.github.io/VR_Robot_Training/** — open in the Quest 3 browser and press **Enter VR**.
 
-Add `?demo` to preload correctly taught points (pSafe, pDispenser, pReader) and the reference transfer program, so you can try execution without teaching: **https://jammydav.github.io/VR_Robot_Training/?demo**. This replaces any saved points and program.
+The program board has a **Load example program** button (tap twice; it replaces your points and program). Alternatively, add `?demo` to preload correctly taught points (pSafe, pDispenser, pReader) and the reference transfer program, so you can try execution without teaching: **https://jammydav.github.io/VR_Robot_Training/?demo**. This replaces any saved points and program.
 Every push to `main` rebuilds and redeploys via GitHub Actions (`.github/workflows/deploy.yml`).
 
 ## Setup
@@ -57,7 +57,7 @@ Every input path runs through the same pendant logic (`src/input/PendantLogic.ts
 
 ### The pendant panel
 
-- **In VR** the panel sits on your left controller, tilted toward your face. Press its keys with the right-hand ray and the trigger.
+- **In VR** the panel lies flat on your left controller, to its right. Add `?tilt=20` (degrees) to the URL to tip it up toward you; the value is remembered on that headset (`?tilt=0` resets). Press its keys with the right-hand ray and the trigger.
 - **On desktop** it is docked bottom-left. Click its keys with the mouse.
 
 It shows:

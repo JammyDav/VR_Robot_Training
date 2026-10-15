@@ -28,6 +28,8 @@ const NEXT_VARIANT: Record<PlateVariant, PlateVariant> = { clear: 'white', white
 export interface BoardActions {
   exportCell(): void;
   importCell(): void;
+  /** Replace points + program with the correctly taught reference set. */
+  loadExample(): void;
 }
 
 export class ProgramBoard {
@@ -91,6 +93,8 @@ export class ProgramBoard {
 
     // ---- Sequence column ---------------------------------------------------------------
     P.addText({ text: 'SEQUENCE', size: 0.017, font: 'mono', color: BRAND.sage, position: [COL_S, -0.105, 0] });
+    // Two-tap confirm: it replaces the learner's points and program.
+    this.b.example = P.addButton({ id: 'loadExample', label: 'Load example program', x: COL_S + 0.13, y: -0.094, w: 0.25, h: 0.036, size: 0.0145, onClick: () => this.loadExample() });
     this.b.scrollUp = P.addButton({ label: '↑', x: COL_S + W_S - 0.11, y: -0.098, w: 0.05, h: 0.03, size: 0.02, onClick: () => { this.scroll = Math.max(0, this.scroll - 5); this.dirty = true; } });
     this.b.scrollDn = P.addButton({ label: '↓', x: COL_S + W_S - 0.055, y: -0.098, w: 0.05, h: 0.03, size: 0.02, onClick: () => { this.scroll += 5; this.dirty = true; } });
     for (let i = 0; i < CARD_ROWS; i++) {
@@ -158,6 +162,19 @@ export class ProgramBoard {
     ctl.events.on('mode', mark);
   }
 
+  private exampleArmedUntil = 0;
+  private loadExample() {
+    if (this.ctl.runner.active) return;
+    const now = performance.now();
+    if (now < this.exampleArmedUntil) {
+      this.exampleArmedUntil = 0;
+      this.actions.loadExample();
+      this.selStep = null;
+      this.scroll = 0;
+      this.dirty = true;
+    } else this.exampleArmedUntil = now + 4000;
+  }
+
   // --- actions -------------------------------------------------------------------
   private reteach(i: number) {
     if (this.ctl.mode !== 'manual') { this.ctl.events.emit('denied', { reason: 'Re-teach points in Manual mode.' }); return; }
@@ -215,6 +232,10 @@ export class ProgramBoard {
     this.b.step.setEnabled(ctl.mode !== 'manual' && !ctl.estop && !ctl.fault && st !== 'running');
     this.b.abort.setEnabled(running);
     this.b.variant.setLabel(VARIANT_LABEL[ctl.cell.variant]);
+    const armed = performance.now() < this.exampleArmedUntil;
+    this.b.example.setLabel(armed ? 'Tap again: replaces your work' : 'Load example program');
+    this.b.example.setBaseColor(armed ? 0xfbefd8 : UI.button);
+    this.b.example.setEnabled(!running);
     this.b.resetCell.setEnabled(!running);
     this.b.record.setEnabled(ctl.mode === 'manual');
     setText(this.t.status, this.statusLine(), ctl.fault ? SIGNAL.fault : UI.text);
@@ -254,7 +275,7 @@ export class ProgramBoard {
       c.btn.setBaseColor(current ? 0xc9ecd9 : UI.button);
       const onDark = !!s && s.id === this.selStep;
       setText(c.num, s ? String(idx + 1).padStart(2, '0') : '', onDark ? 0xdfeee8 : BRAND.sage);
-      setText(c.label, s ? stepLabel(s) : (i === 0 ? 'Empty program: add steps from the palette below' : ''), onDark ? 0xffffff : UI.text);
+      setText(c.label, s ? stepLabel(s) : (i === 0 ? 'Empty program: add steps below, or press Load example program' : ''), onDark ? 0xffffff : UI.text);
     });
     this.b.scrollUp.setVisible(steps.length > CARD_ROWS);
     this.b.scrollDn.setVisible(steps.length > CARD_ROWS);

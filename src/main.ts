@@ -83,7 +83,7 @@ const desktopInput = new DesktopInput();
 const input = emptyInput();
 const hud = createHud({
   ctl, logic, xr, rig, boards, scene, camera, dom: renderer.domElement,
-  board: { exportCell: () => exportCell(ctl), importCell: () => { void importCell(ctl); } },
+  board: { exportCell: () => exportCell(ctl), importCell: () => { void importCell(ctl); }, loadExample: () => loadDemo(ctl) },
 });
 
 // Desktop shortcuts for panel keys (the same actions are on the pendant panel).
