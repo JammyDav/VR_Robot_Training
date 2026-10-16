@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { BENCH, OPERATOR_SPOT, BOARDS, HALF_D } from '../config/cellLayout';
+import { BENCH, OPERATOR_SPOT, BOARDS, HALF_D, PROGRAM_SCREEN } from '../config/cellLayout';
 
 const EYE = 1.62;
 
@@ -10,7 +10,8 @@ export const VIEWS: Record<string, View> = {
   operator: { pos: [OPERATOR_SPOT.x, EYE, OPERATOR_SPOT.z + 0.15], target: [BENCH.x, BENCH.topY + 0.25, BENCH.z] },
   overview: { pos: [2.6, 2.3, 2.2], target: [0, 0.95, -0.6] },
   cell: { pos: [0.55, 1.45, 0.55], target: [BENCH.x, BENCH.topY + 0.1, BENCH.z] },
-  boards: { pos: [0, EYE, 0.6], target: [0, BOARDS.y, -HALF_D] },
+  boards: { pos: [-0.4, EYE, 0.6], target: [BOARDS.whiteboardX, BOARDS.y, -HALF_D] },
+  screen: { pos: [OPERATOR_SPOT.x + 0.1, EYE, OPERATOR_SPOT.z + 0.1], target: [PROGRAM_SCREEN.x, PROGRAM_SCREEN.centerY, PROGRAM_SCREEN.z] },
   robot: { pos: [-0.95, 1.5, 0.45], target: [BENCH.x, BENCH.topY + 0.42, BENCH.z] },
 };
 
@@ -32,7 +33,7 @@ export function setupDesktopCamera(camera: THREE.PerspectiveCamera, dom: HTMLEle
   };
   go('operator');
 
-  const order: Array<keyof typeof VIEWS> = ['operator', 'overview', 'cell', 'boards', 'robot'];
+  const order: Array<keyof typeof VIEWS> = ['operator', 'overview', 'cell', 'boards', 'robot', 'screen'];
   window.addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     const i = Number(e.key) - 1;

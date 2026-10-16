@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import type { Materials } from './materials';
 import { mesh, box, cyl, group } from './build';
-import { BOARDS, HALF_D } from '../config/cellLayout';
+import { BOARDS, HALF_D, PROGRAM_SCREEN } from '../config/cellLayout';
 import { TextGroup } from '../ui/text';
 import { BRAND, TEAM_NAME } from '../config/brand';
 
 export interface BoardHandles {
   /**
    * Mount points, +X right, −Y down, +Z out of the wall. Whiteboard: top-left of
-   * the writing area. Program board: top-left corner of the display surface.
+   * the writing area. Program board: top-left corner of the program screen (scaled).
    */
   whiteboard: THREE.Group;
   programBoard: THREE.Group;
@@ -49,12 +49,31 @@ export function buildBoards(root: THREE.Object3D, M: Materials): BoardHandles {
   ul.userData.dynamic = true;
   wbSurface.add(ul);
 
-  // --- Program board: wall-mounted display panel ---------------------------
-  const pb = group(root, BOARDS.programBoardX, BOARDS.y, wallZ + 0.02, 0, 'programBoard');
-  mesh(box(W + 0.04, H + 0.04, 0.035), M.frameDark, pb, 0, 0, 0);
-  mesh(box(W, H, 0.004), M.paper, pb, 0, 0, 0.0185);
-  // Live content (programBoard.ts) mounts at the surface's top-left corner.
-  const pbSurface = group(pb, -W / 2, H / 2, 0.0205);
+  // --- Program screen: large display on a rolling stand beside the operator -----
+  const PS = PROGRAM_SCREEN;
+  const SW = W * PS.scale, SH = H * PS.scale;
+  const stand = group(root, PS.x, 0, PS.z, PS.yaw, 'programScreen');
+  // Five-star base with casters, column, and a keyboard shelf.
+  for (let i = 0; i < 5; i++) {
+    const ang = (i / 5) * Math.PI * 2;
+    mesh(box(0.34, 0.025, 0.05), M.frameDark, stand, Math.cos(ang) * 0.16, 0.06, Math.sin(ang) * 0.16, 0, -ang, 0);
+    mesh(cyl(0.025, 0.025, 0.035, 12), M.rubber, stand, Math.cos(ang) * 0.32, 0.018, Math.sin(ang) * 0.32);
+  }
+  mesh(cyl(0.035, 0.04, 0.05, 16), M.frameDark, stand, 0, 0.09, 0);
+  mesh(cyl(0.03, 0.03, PS.centerY - 0.12, 16), M.aluminium, stand, 0, (PS.centerY - 0.12) / 2 + 0.1, -0.05);
+  mesh(box(0.5, 0.018, 0.26), M.frameDark, stand, 0, 0.92, 0.1);
+  mesh(box(0.42, 0.012, 0.14), M.instrumentDark, stand, 0, 0.935, 0.12);
+  mesh(box(0.08, 0.012, 0.1), M.instrumentDark, stand, 0.28, 0.935, 0.12);
+  // Display: dark bezel, mount plate, screen surface.
+  const disp = group(stand, 0, PS.centerY, 0, 0, 'programDisplay');
+  disp.rotation.x = PS.tilt;
+  mesh(box(0.2, 0.2, 0.05), M.frameDark, disp, 0, 0, -0.06);
+  mesh(box(SW + 0.03, SH + 0.03, 0.035), M.frameDark, disp, 0, 0, -0.02);
+  mesh(box(SW, SH, 0.002), M.paper, disp, 0, 0, -0.0015);
+  mesh(box(0.08, 0.01, 0.003), M.brandGreen, disp, 0, -SH / 2 - 0.009, 0.0);
+  // Live content (programBoard.ts) mounts at the screen's top-left corner, scaled.
+  const pbSurface = group(disp, -SW / 2, SH / 2, 0.0005);
+  pbSurface.scale.setScalar(PS.scale);
 
   return { whiteboard: wbSurface, programBoard: pbSurface };
 }

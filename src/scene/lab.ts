@@ -17,7 +17,7 @@ export function buildLab(root: THREE.Object3D, M: Materials): LabHandles {
   buildFumeHood(root, M);
   buildBiosafetyCabinet(root, M);
   buildSideBench(root, M);
-  buildStool(root, M, 1.55, 0.95);
+  buildStool(root, M, 2.0, 1.55);
   buildPoster(root, M);
   const clock = buildClock(root, M);
   return { clock };

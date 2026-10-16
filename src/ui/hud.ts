@@ -237,9 +237,9 @@ export function createHud(d: HudDeps) {
       wbToggle.setLabel(tutorial.enabled ? 'Tutorial: ON' : 'Tutorial: OFF');
       wbToggle.setActive(tutorial.enabled);
 
-      // Panel text and bars at 30 Hz: plenty for a readout, and it keeps CPU free for 72–90 fps.
+      // Panel text and bars at 20 Hz: plenty for a readout, and it keeps CPU free for 72–90 fps.
       panelClock += dt;
-      if (panelClock >= 1 / 30) {
+      if (panelClock >= 1 / 20) {
         pendant.update(panelClock);
         programBoard.update();
         if (mapOn) map.update();

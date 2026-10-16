@@ -130,6 +130,7 @@ const shadowWatch = (() => {
 let last = performance.now();
 let elapsed = 0;
 const loopStats = { frames: 0 };
+let shadowPending = false;
 
 // Exposed for debugging in the browser console.
 Object.assign(window as object, {
@@ -138,6 +139,7 @@ Object.assign(window as object, {
 
 renderer.setAnimationLoop(() => {
   const now = performance.now();
+  const cpuStart = now;
   const dt = Math.min(Math.max((now - last) / 1000, 0), 0.1);
   last = now;
   elapsed += dt;
@@ -151,7 +153,9 @@ renderer.setAnimationLoop(() => {
   ctl.update(dt);
   rig.update(robot.q, robot.gripper.halfGap);
   cellView.update(dt, camera);
-  if (shadowWatch.changed()) renderer.shadowMap.needsUpdate = true;
+  // Moving casters: refresh the shadow map every other frame (~45 Hz), plus once when motion stops.
+  if (shadowWatch.changed()) { shadowPending = true; if (loopStats.frames % 2 === 0) { renderer.shadowMap.needsUpdate = true; shadowPending = false; } }
+  else if (shadowPending) { renderer.shadowMap.needsUpdate = true; shadowPending = false; }
 
   if (!xr.isPresenting()) desktop.controls.update();
   updateClock(lab.clock);
@@ -161,7 +165,7 @@ renderer.setAnimationLoop(() => {
   hud.update(dt, input.rTrigger);
 
   renderer.render(scene, camera);
-  perf.sample(dt, renderer.info, xr.isPresenting());
+  perf.sample(dt, renderer.info, xr.isPresenting(), performance.now() - cpuStart);
 });
 
 const loading = document.getElementById('loading')!;

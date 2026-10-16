@@ -40,3 +40,18 @@ export const BOARDS = {
   whiteboardX: -1.12,
   programBoardX: 1.12,
 } as const;
+
+/**
+ * Program screen: a large display on a rolling stand at the operator's right,
+ * angled to face the operator position. The 1.8 × 1.2 m board layout is shown
+ * at `scale` (≈ 1.0 × 0.66 m, a 46" display) about 1 m from the operator.
+ */
+export const PROGRAM_SCREEN = {
+  x: 1.0,
+  z: 0.88,
+  centerY: 1.42,
+  scale: 0.55,
+  // Face the operator's eye (OPERATOR_SPOT at head height).
+  yaw: Math.atan2(0 - 1.0, 1.05 - 0.88),
+  tilt: -0.08, // slight lean back
+} as const;

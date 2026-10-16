@@ -14,6 +14,8 @@ export class PerfHud {
   private acc = 0;
   private worst = 0;
   fps = 0;
+  private cpuAcc = 0;
+  private cpuWorst = 0;
   calls = 0;
   tris = 0;
   visible: boolean;
@@ -39,15 +41,19 @@ export class PerfHud {
   }
 
   /** Call once per frame after rendering. */
-  sample(dt: number, info: THREE.WebGLInfo, presenting: boolean) {
+  /** cpuMs: time spent in the frame callback (simulation + render submission). */
+  sample(dt: number, info: THREE.WebGLInfo, presenting: boolean, cpuMs = 0) {
     this.frames++;
+    this.cpuAcc += cpuMs;
+    this.cpuWorst = Math.max(this.cpuWorst, cpuMs);
     this.acc += dt;
     this.worst = Math.max(this.worst, dt);
     this.calls = info.render.calls;
     this.tris = info.render.triangles;
     if (this.acc >= 0.5) {
       this.fps = this.frames / this.acc;
-      const line = `${this.fps.toFixed(0)} fps  ·  worst ${(this.worst * 1000).toFixed(1)} ms  ·  ${this.calls} draws  ·  ${Number.isFinite(this.tris) ? `${(this.tris / 1000).toFixed(0)}k tris` : 'tris n/a'}`;
+      const cpu = this.cpuAcc / this.frames;
+      const line = `${this.fps.toFixed(0)} fps  ·  worst ${(this.worst * 1000).toFixed(1)} ms  ·  CPU ${cpu.toFixed(1)} ms (max ${this.cpuWorst.toFixed(1)})  ·  ${this.calls} draws  ·  ${Number.isFinite(this.tris) ? `${(this.tris / 1000).toFixed(0)}k tris` : 'tris n/a'}`;
       if (this.visible) {
         this.el.textContent = line;
         this.xrText.text = line;
@@ -56,6 +62,8 @@ export class PerfHud {
       this.frames = 0;
       this.acc = 0;
       this.worst = 0;
+      this.cpuAcc = 0;
+      this.cpuWorst = 0;
     }
     this.xrText.visible = this.visible && presenting;
   }

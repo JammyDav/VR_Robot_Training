@@ -47,7 +47,7 @@ npm install
 
 ### Measuring performance on the headset
 
-- Press **P** on desktop, or add `?perf` to the URL, to toggle the readout: fps, worst frame time, draw calls and triangles. In VR the same line shows just below your view.
+- Press **P** on desktop, or add `?perf` to the URL, to toggle the readout: fps, worst frame time, **CPU time** per frame (simulation plus render submission), draw calls and triangles. If CPU time is well under the frame budget (11 ms at 90 fps) while fps is low, the GPU is the limit. In VR the same line shows just below your view.
 - For authoritative numbers, use Meta's **OVR Metrics Tool** overlay (fps, GPU and CPU levels).
 - Targets: 72 fps minimum, 90 preferred, and under about 150 draw calls in the main view.
 
@@ -139,7 +139,7 @@ Each point stores the six joint values and the derived TCP pose (X Y Z in mm, Rx
 
 ### Program board
 
-The program board is on the wall to the right of the whiteboard. Every board control is ray- and mouse-clickable.
+The program board is shown on a large display on a rolling stand to your right at the operator position, angled toward you about 1 m away. (It was on the far wall at first; that was too far to read.) Every board control is ray- and mouse-clickable.
 
 - **Sequence.** The program is a list of step cards: MoveJ to point, MoveL to point, Approach point by offset (as a MoveJ or MoveL), Gripper open, Gripper close, Wait, Dispense plate, Reader tray extend, Reader tray retract, and Wait for read.
 - **Editing a step.** Select a card to edit it:
