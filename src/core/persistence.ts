@@ -14,6 +14,9 @@ export interface CellFile {
   exportedAt: string;
   points: TaughtPoint[];
   program: Array<Omit<Step, 'id'>>;
+  /** Points / program that came from the built-in example (no challenge credit). */
+  examplePoints?: string[];
+  exampleProgram?: boolean;
 }
 
 export const persistenceEvents = new Emitter<{ exported: { bytes: number }; imported: { points: number; steps: number } }>();
@@ -25,12 +28,22 @@ function snapshot(ctl: Controller): CellFile {
     exportedAt: new Date().toISOString(),
     points: ctl.points.points,
     program: ctl.program.toJSON(),
+    examplePoints: [...ctl.points.example],
+    exampleProgram: ctl.program.fromExample,
   };
 }
 
 function apply(ctl: Controller, data: Partial<CellFile>) {
-  if (Array.isArray(data.points)) ctl.points.load(data.points);
-  if (Array.isArray(data.program)) ctl.program.load(data.program as Step[]);
+  if (Array.isArray(data.points)) {
+    ctl.points.load(data.points);
+    for (const n of data.examplePoints ?? []) ctl.points.example.add(n);
+  }
+  if (Array.isArray(data.program)) {
+    ctl.program.loadingExample = true;
+    ctl.program.load(data.program as Step[]);
+    ctl.program.loadingExample = false;
+    ctl.program.fromExample = !!data.exampleProgram;
+  }
 }
 
 /** Load saved state, then save on every change. */

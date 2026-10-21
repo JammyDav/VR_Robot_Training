@@ -2,13 +2,16 @@
 
 A WebXR training simulation of a six-axis TX2-60-class arm moving SLAS-format microplates from a dispenser nest to a plate-reader tray. It is built for the Meta Quest 3 browser and also works on a desktop with keyboard and mouse.
 
-> **Status: Stage 5 of 6.** Built so far: the lab, the robot, the pendant, IK jogging, safety, and the tutorial. This stage adds taught points, Point-mode moves, the program board (step sequence plus VAL3-style view), program execution, plate handling with seat tolerance, and faults (collision, misseat, misaligned grip, release outside a nest, tray interlock). Stage 6 adds the whiteboard challenges, audio and polish.
+> **Status: complete (all six stages).** The app covers the lab and robot; the SP2-style pendant with deadman, E-stop and beacon; Joint/Frame/Tool/Point jogging with damped least-squares IK; taught points; the program screen with its VAL3-style view; execution; plates and faults; the guided tutorial; the whiteboard challenges; and synthesised audio and haptics.
 
 ## Live build
 
 **https://jammydav.github.io/VR_Robot_Training/** — open in the Quest 3 browser and press **Enter VR**.
 
 The program board has a **Load example program** button (tap twice; it replaces your points and program). Alternatively, add `?demo` to preload correctly taught points (pSafe, pDispenser, pReader) and the reference transfer program, so you can try execution without teaching: **https://jammydav.github.io/VR_Robot_Training/?demo**. This replaces any saved points and program.
+
+The example points and program earn **no challenge credit**. Challenges 5–7 need points you taught or re-taught yourself. Challenges 8–10 need a program you built yourself or edited.
+
 Every push to `main` rebuilds and redeploys via GitHub Actions (`.github/workflows/deploy.yml`).
 
 ## Setup
@@ -190,16 +193,79 @@ The program board is shown on a large display on a rolling stand to your right a
 - A 180° J1 swing with the arm stretched out reaches past the back guarding, so a working transfer program folds through `pSafe` between the two nests.
 - The canonical program used by the tests is in `tests/helpers.ts`.
 
+## Whiteboard challenges
+
+The whiteboard faces you from the operator position. On the left are the challenges; on the right, the tutorial when it is on. Each challenge ticks with a two-stroke marker animation and a short chime when its condition is detected from live state. Progress persists in `localStorage`. **Reset board** (lower right) needs a second tap to confirm.
+
+| # | Challenge | How it is detected |
+|---|---|---|
+| 1 | Enable and jog J1 ≥ 30° each way | J1 travel in Joint jog with the enabling device held: ≥ 30° positive and ≥ 30° negative |
+| 2 | Tool jog 100 mm straight down and back up | In Tool translate jog, the TCP drops ≥ 100 mm with ≤ 15 mm sideways drift, then returns to within 10 mm of the start height |
+| 3 | Speed 10 % then 5 % | A speed-override change from 10 % to 5 % |
+| 4 | Open and close the gripper | Both a closed and an open gripper event |
+| 5 | Teach `pSafe` clear of both instruments | A `pSafe` the learner taught, with its TCP ≥ 100 mm from both instrument bodies and ≥ 150 mm above the bench |
+| 6 | Teach `pDispenser` for a correct seat | Within ±3 mm / ±3° of the ideal grip pose for the dispenser nest (a 180° flip about the tool axis is allowed) |
+| 7 | Teach `pReader` for a correct seat | The same check, for the extended reader tray |
+| 8 | Program moves a plate dispenser → reader without a fault | A clean run in which a plate is gripped from the dispenser and released **seated** in the reader |
+| 9 | Approach points: never descend from the side | As 8, and for every grip and release the last 30 mm into the nest stayed within 3 mm of vertical |
+| 10 | Full cycle at 100 % in Local, no faults | As 8, run in Local at 100 % override, including the read |
+| 11 | Trigger and reset an E-stop | An E-stop followed by a reset (the reset itself requires the enabling device released) |
+| 12 | Export your program | A JSON export (Export on the program screen) |
+
+All twelve can be completed in VR. Challenges 1–8 can also be completed with keyboard and mouse.
+
+## Audio and haptics
+
+All sound is synthesised with the Web Audio API; there are no audio files. Sources use equal-power positional panning.
+
+| Sound | When |
+|---|---|
+| Servo whine | Pitch and level follow joint speed |
+| Gripper click | Gripper opens or closes |
+| Motor | Reader tray moving |
+| Hum | Plate being read |
+| Whir | Dispenser dispensing |
+| Two-note chime | Challenge completed |
+| Descending two-tone | Fault |
+| Triple beep | E-stop |
+| Faint tick | Panel press |
+
+The default volume is **low**. Use the **Sound** button on the whiteboard, or **V** on desktop, to cycle off, low and medium. The setting is remembered.
+
+Haptic pulses fire on:
+- panel presses
+- jog-mode and speed changes
+- enabling
+- gripper events
+- joint limits
+- faults and E-stop
+- challenge completion
+
+## Acceptance checklist
+
+| Criterion | Status |
+|---|---|
+| Loads on the Quest 3 browser over HTTPS and enters VR from one button | ✅ Verified on headset (GitHub Pages and LAN) |
+| ≥ 72 fps during a program run with both instruments animating | ✅ High 80s on the headset before Stage 6 (CPU 6–8 ms of 11 ms). ⏳ Re-check needed after the Stage 6 audio, whiteboard and material changes |
+| Jogging in all four modes, deadman gating all motion | ✅ Unit tests and headset checks |
+| IK slows and reports near singularities; no flips | ✅ Unit test drives through J5 = 0; checked on headset in Stage 3 |
+| A correctly taught program seats the plate flush in each nest | ✅ Unit test (to within 1 nm); example program run on headset |
+| All 12 challenges completable and persist across reload | ✅ Unit tests cover detection; progress saved in `localStorage`. ⏳ Headset run-through pending |
+| Desktop fallback can complete challenges 1–8 | ✅ Keyboard and mouse use the same pendant logic, and the challenge tests drive the same controller |
+| README covers setup, controller map, approximations and spec verification | ✅ This document |
+| No Stäubli or vendor logos; "Scientific Solutions" is the only team name | ✅ Plain "TX2-60" nameplate only; generic instruments |
+
 ## Project layout
 
 ```
 src/
   config/      robot spec, cell layout, plate dimensions, brand tokens
-  core/        simulation state and logic, no scene objects (Stage 2+)
+  core/        simulation state and logic (no scene objects): kinematics, motion, cell, program, safety, challenges
   input/       desktop camera; XR and desktop pendant adapters (Stage 3+)
   scene/       procedural lab, instruments, boards, lighting, static batcher
   ui/          SDF text, panel kit (instanced rects + batched text), pendant, controller map, tutorial
   xr/          WebXR session, rig and controllers
+  fx/          synthesised audio, haptics
   debug/       performance readout
 ```
 
@@ -208,6 +274,8 @@ src/
 - All geometry is procedural, with no external models.
 - Static furniture is composed as ordinary Three.js object trees. `StaticBatcher` then merges it into one mesh per material, which brings the whole lab to about 60 draw calls.
 - Lighting is a hemisphere light, one shadowed directional key over the bench, a weak fill light and a prefiltered `RoomEnvironment` for reflections. The ceiling panels are emissive. There are no post-processing passes.
+- Large matte surfaces (walls, ceiling, paper) use Lambert shading. The floor, metals, robot and instruments use the physically based material.
+- Shadows use PCF filtering and re-render only while a caster moves, every other frame. Pendant and screen text updates at 20 Hz.
 - Foveation is set to level 1.
 - All text is SDF text via `troika-three-text`, batched per font for each panel.
 

@@ -37,7 +37,7 @@ export const BOARDS = {
   y: 1.62, // centre height
   width: 1.8,
   height: 1.2,
-  whiteboardX: -1.12,
+  whiteboardX: -1.35, // left of centre so its right half stays clear of the arm from the operator spot
   programBoardX: 1.12,
 } as const;
 

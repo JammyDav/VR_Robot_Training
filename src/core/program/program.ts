@@ -43,6 +43,8 @@ export const PROGRAM_TITLE = 'Plate transfer: dispenser → reader';
 export class Program {
   readonly events = new Emitter<ProgramEvents>();
   steps: Step[] = [];
+  /** True while the program is the unedited example. */
+  fromExample = false;
   private nextId = 1;
 
   add(kind: StepKind, defaultPoint: string, at = this.steps.length): Step {
@@ -94,7 +96,12 @@ export class Program {
   /** Plain JSON for export / storage (ids stripped). */
   toJSON() { return this.steps.map(({ id: _id, ...rest }) => rest); }
 
-  private changed() { this.events.emit('changed', {}); }
+  private changed() {
+    if (!this.loadingExample) this.fromExample = false;
+    this.events.emit('changed', {});
+  }
+  /** Set by the example loader so its own edits don't clear `fromExample`. */
+  loadingExample = false;
 }
 
 // --- Labels and VAL3-flavoured code generation ----------------------------------

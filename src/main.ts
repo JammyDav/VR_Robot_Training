@@ -20,6 +20,9 @@ import { createHud } from './ui/hud';
 import { createCellView } from './scene/cellView';
 import { bindPersistence, exportCell, importCell } from './core/persistence';
 import { loadDemo } from './core/cell/demo';
+import { Challenges } from './core/challenges';
+import { CellAudio } from './fx/audio';
+import { MAX_SPEED_RAD } from './config/robotSpec';
 import { PerfHud } from './debug/perfHud';
 
 const container = document.getElementById('app')!;
@@ -79,11 +82,15 @@ const logic = new PendantLogic(ctl, {
   moveToPoint: (held) => ctl.moveToPoint(held),
 });
 const cellView = createCellView(scene, ctl, dispenser, reader);
+const challenges = new Challenges(ctl);
+const audio = new CellAudio();
+renderer.xr.addEventListener('sessionstart', () => audio.ensure());
 const desktopInput = new DesktopInput();
 const input = emptyInput();
 const hud = createHud({
   ctl, logic, xr, rig, boards, scene, camera, dom: renderer.domElement,
   board: { exportCell: () => exportCell(ctl), importCell: () => { void importCell(ctl); }, loadExample: () => loadDemo(ctl) },
+  challenges, audio,
 });
 
 // Desktop shortcuts for panel keys (the same actions are on the pendant panel).
@@ -95,6 +102,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.code === 'KeyT') rig.triad.visible = !rig.triad.visible;
   else if (e.code === 'KeyG') ctl.toggleGripper();
   else if (e.code === 'KeyH') hud.toggleTutorial();
+  else if (e.code === 'KeyV') audio.cycleVolume();
 });
 
 // Resize when the window size changes (checked per frame: a tab opened in the
@@ -124,6 +132,18 @@ const shadowWatch = (() => {
   };
 })();
 
+// --- Audio sources -----------------------------------------------------------------
+const audioPos = {
+  robot: new THREE.Vector3(0, 1.3, -0.3),
+  reader: new THREE.Vector3().setFromMatrixPosition(reader.root.matrixWorld),
+  dispenser: new THREE.Vector3().setFromMatrixPosition(dispenser.root.matrixWorld),
+};
+function jointSpeedFraction() {
+  let m = 0;
+  for (let i = 0; i < 6; i++) m = Math.max(m, Math.abs(robot.qd[i]) / MAX_SPEED_RAD[i]);
+  return m * 3; // jog speeds are ~10–25 % of max; scale so they are audible
+}
+
 // --- Loop ------------------------------------------------------------------
 // Frame time from performance.now(): rAF and XR frame timestamps use different
 // clocks on some browsers, so they are not mixed. Clamped against stalls.
@@ -134,7 +154,7 @@ let shadowPending = false;
 
 // Exposed for debugging in the browser console.
 Object.assign(window as object, {
-  __sim: { scene, renderer, camera, desktop, dispenser, reader, xr, ctl, robot, rig, logic, desktopInput, hud, loopStats, elapsed: () => elapsed },
+  __sim: { scene, renderer, camera, desktop, dispenser, reader, xr, ctl, robot, rig, logic, desktopInput, hud, challenges, audio, loopStats, elapsed: () => elapsed },
 });
 
 renderer.setAnimationLoop(() => {
@@ -153,6 +173,13 @@ renderer.setAnimationLoop(() => {
   ctl.update(dt);
   rig.update(robot.q, robot.gripper.halfGap);
   cellView.update(dt, camera);
+  challenges.update(dt);
+  audio.update({
+    camera: xr.isPresenting() ? renderer.xr.getCamera() : camera,
+    robotPos: audioPos.robot, jointSpeed: jointSpeedFraction(),
+    readerPos: audioPos.reader, trayMoving: ctl.cell.trayState === 'moving', reading: ctl.cell.reader.state === 'reading',
+    dispenserPos: audioPos.dispenser, dispensing: ctl.cell.dispenser.state !== 'idle',
+  });
   // Moving casters: refresh the shadow map every other frame (~45 Hz), plus once when motion stops.
   if (shadowWatch.changed()) { shadowPending = true; if (loopStats.frames % 2 === 0) { renderer.shadowMap.needsUpdate = true; shadowPending = false; } }
   else if (shadowPending) { renderer.shadowMap.needsUpdate = true; shadowPending = false; }

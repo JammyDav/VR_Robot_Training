@@ -5,6 +5,9 @@ import { PendantPanel, PENDANT_W, PENDANT_H } from './pendantPanel';
 import { ControllerMap, MAP_H } from './controllerMap';
 import { Tutorial } from './tutorial';
 import { ProgramBoard, type BoardActions } from './programBoard';
+import { ChallengeBoard } from './whiteboard';
+import type { Challenges } from '../core/challenges';
+import type { CellAudio } from '../fx/audio';
 import { RayVisual } from '../xr/ray';
 import { pulse, HAPTIC } from '../fx/haptics';
 import type { Controller } from '../core/Controller';
@@ -23,6 +26,8 @@ export interface HudDeps {
   camera: THREE.PerspectiveCamera;
   dom: HTMLElement;
   board: BoardActions;
+  challenges: Challenges;
+  audio: CellAudio;
 }
 
 const DOCK_DISTANCE = 0.5;
@@ -87,11 +92,10 @@ export function createHud(d: HudDeps) {
     isDesktop: () => !xr.isPresenting(),
     desktopDock: dock,
     desktopCalloutPos: new THREE.Vector3(PENDANT_W + 0.012, 0, 0),
-    // VR: left half of the whiteboard, below the header. The right half is partly
-    // hidden behind the arm from the operator spot.
+    // VR: right half of the whiteboard, beside the challenge list.
     boardMount: d.boards.whiteboard,
-    boardPos: new THREE.Vector3(0.0, -0.15, 0.002),
-    boardScale: 7.0, // ≈ 0.9 × 0.6 m; body type ≈ 37 mm, legible from the operator spot
+    boardPos: new THREE.Vector3(0.95, -0.135, 0.002),
+    boardScale: 5.6, // ≈ 0.73 × 0.49 m
   });
 
   // Whiteboard: tutorial toggle in the lower-left of the board.
@@ -100,6 +104,12 @@ export function createHud(d: HudDeps) {
   d.boards.whiteboard.add(wbPanel);
   const wbToggle = wbPanel.addButton({ id: 'tutorialToggle', label: '', x: 0, y: -0.005, w: 0.4, h: 0.09, size: 0.038, onClick: () => tutorial.toggle() });
   wbPanel.addButton({ id: 'tutorialRestart', label: 'Restart tutorial', x: 0.42, y: -0.005, w: 0.4, h: 0.09, size: 0.036, onClick: () => { tutorial.setEnabled(true); tutorial.restart(); } });
+
+  // Challenge list (left of the whiteboard) with sound + guarded reset bottom-right.
+  const challengeBoard = new ChallengeBoard(d.challenges, d.boards.whiteboard, {
+    cycle: () => d.audio.cycleVolume(),
+    label: () => d.audio.volumeLabel,
+  });
 
   // Gripper hover label.
   const gripLabel = new Panel(0.085, 0.016, 0x2a3033);
@@ -116,6 +126,7 @@ export function createHud(d: HudDeps) {
   pointer.add(panelTarget(tutorial.callout));
   pointer.add(panelTarget(wbPanel));
   pointer.add(panelTarget(programBoard.panel));
+  pointer.add(panelTarget(challengeBoard.controls));
   pointer.add({
     object: rig.gripperProxy,
     enabled: () => !ctl.estop,
@@ -124,6 +135,7 @@ export function createHud(d: HudDeps) {
   });
   pointer.onPress = (r) => {
     pulse(xr, 'right', ...HAPTIC.click);
+    d.audio.click();
     if (r.widget && 'flash' in r.widget) (r.widget as { flash(): void }).flash();
   };
 
@@ -131,8 +143,10 @@ export function createHud(d: HudDeps) {
   ctl.events.on('jogMode', () => pulse(xr, 'left', ...HAPTIC.modeChange));
   ctl.events.on('speed', () => pulse(xr, 'left', ...HAPTIC.modeChange));
   ctl.events.on('enable', (e) => { if (e.state === 'enabled') pulse(xr, 'left', 0.2, 15); });
-  ctl.events.on('estop', (e) => { if (e.active) { pulse(xr, 'left', ...HAPTIC.fault); pulse(xr, 'right', ...HAPTIC.fault); } });
-  ctl.robot.events.on('gripper', () => pulse(xr, 'right', ...HAPTIC.gripper));
+  ctl.events.on('estop', (e) => { if (e.active) { pulse(xr, 'left', ...HAPTIC.fault); pulse(xr, 'right', ...HAPTIC.fault); d.audio.estop(); } });
+  ctl.events.on('fault', (e) => { if (e.message) { pulse(xr, 'left', ...HAPTIC.fault); pulse(xr, 'right', ...HAPTIC.fault); d.audio.fault(); } });
+  d.challenges.events.on('completed', () => { d.audio.chime(); pulse(xr, 'left', 0.4, 60); pulse(xr, 'right', 0.4, 60); });
+  ctl.robot.events.on('gripper', (e) => { pulse(xr, 'right', ...HAPTIC.gripper); d.audio.gripperClick(e.state === 'closed'); });
   ctl.robot.events.on('jointLimit', () => pulse(xr, 'left', ...HAPTIC.limit));
 
   const ray = new RayVisual();
@@ -242,6 +256,7 @@ export function createHud(d: HudDeps) {
       if (panelClock >= 1 / 20) {
         pendant.update(panelClock);
         programBoard.update();
+        challengeBoard.update(panelClock);
         if (mapOn) map.update();
         panelClock = 0;
       }

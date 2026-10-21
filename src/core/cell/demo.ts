@@ -54,10 +54,12 @@ export const REFERENCE_PROGRAM: StepSpec[] = [
   ['waitRead'],
 ];
 
-export function teachPoints(ctl: Controller, pts: Record<string, number[]>) {
+/** Record and name points. `example` marks them as not taught by the learner (no challenge credit). */
+export function teachPoints(ctl: Controller, pts: Record<string, number[]>, example = false) {
   for (const [name, q] of Object.entries(pts)) {
     ctl.robot.setJoints(q);
     const pt = ctl.points.record(ctl.robot.q);
+    if (example) ctl.points.example.add(pt.name); // the mark follows the rename
     ctl.points.rename(ctl.points.points.indexOf(pt), name);
   }
 }
@@ -74,8 +76,11 @@ export function loadProgram(ctl: Controller, steps: StepSpec[] = REFERENCE_PROGR
 export function loadDemo(ctl: Controller) {
   ctl.points.load([]);
   const pts = idealPoints();
-  teachPoints(ctl, pts);
+  teachPoints(ctl, pts, true);
+  ctl.program.loadingExample = true;
   loadProgram(ctl);
+  ctl.program.loadingExample = false;
+  ctl.program.fromExample = true;
   ctl.robot.setJoints(pts.pSafe);
   ctl.points.selected = 0;
 }

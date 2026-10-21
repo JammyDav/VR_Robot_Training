@@ -39,6 +39,8 @@ export class PointStore {
   readonly events = new Emitter<PointEvents>();
   points: TaughtPoint[] = [];
   selected = -1;
+  /** Points that came from the example set (not taught by the learner). Re-teaching clears it. */
+  readonly example = new Set<string>();
 
   get(name: string) { return this.points.find((x) => x.name === name) ?? null; }
   get current() { return this.points[this.selected] ?? null; }
@@ -63,6 +65,7 @@ export class PointStore {
   reteach(index: number, qj: ArrayLike<number>) {
     const pt = this.points[index];
     if (!pt) return;
+    this.example.delete(pt.name);
     pt.q = Array.from(qj);
     pt.pose = poseOf(qj);
     this.events.emit('recorded', { name: pt.name });
@@ -76,6 +79,9 @@ export class PointStore {
     const clash = this.get(name);
     const from = pt.name;
     if (clash) clash.name = this.nextAutoName();
+    const wasExample = this.example.delete(from);
+    this.example.delete(name);
+    if (wasExample) this.example.add(name);
     pt.name = name;
     this.events.emit('renamed', { from, to: name });
     this.events.emit('changed', {});
@@ -94,6 +100,7 @@ export class PointStore {
   }
 
   load(points: TaughtPoint[]) {
+    this.example.clear();
     this.points = points.filter((x) => x && typeof x.name === 'string' && Array.isArray(x.q) && x.q.length === 6)
       .map((x) => ({ ...x, pose: poseOf(x.q), tool: 'tGripper' as const, frame: 'world' as const }));
     this.selected = this.points.length ? 0 : -1;

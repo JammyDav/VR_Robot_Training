@@ -6,6 +6,15 @@ function std(color: number, roughness: number, metalness = 0, extra: Partial<THR
   return new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
 }
 
+/**
+ * Matte, view-filling surfaces (walls, ceiling, paper) use Lambert shading: no
+ * GGX specular or environment lookups, which is most of the per-pixel cost on
+ * Quest. Colours are lifted slightly to make up for the missing environment fill.
+ */
+function matte(color: number, lift = 1.06) {
+  return new THREE.MeshLambertMaterial({ color: new THREE.Color(color).multiplyScalar(lift) });
+}
+
 function speckleTexture(): THREE.Texture {
   // Subtle fleck for the epoxy floor (not text, so a canvas texture is fine).
   const size = 256;
@@ -33,11 +42,11 @@ export function createMaterials() {
   const floorMap = speckleTexture();
   return {
     floor: std(0xe4e3de, 0.3, 0, { map: floorMap }),
-    wall: std(0xf4f4f1, 0.92),
-    dado: std(0xa3aaab, 0.85),
-    skirting: std(0x8a9293, 0.6),
-    ceiling: std(0xf6f6f4, 0.95),
-    ceilingGrid: std(0xe2e3e1, 0.7),
+    wall: matte(0xf4f4f1, 1.0),
+    dado: matte(0xa3aaab),
+    skirting: matte(0x8a9293),
+    ceiling: matte(0xf6f6f4, 1.0),
+    ceilingGrid: matte(0xe2e3e1),
     lightPanel: new THREE.MeshBasicMaterial({ color: 0xffffff }),
     lightPanelWarm: new THREE.MeshBasicMaterial({ color: 0xfffcf4 }),
     trespa: std(0xf3f3f0, 0.5),
@@ -51,13 +60,13 @@ export function createMaterials() {
     instrumentDark: std(0x353c3e, 0.4, 0.1),
     screenGlass: std(0x1a2224, 0.15, 0.2),
     whiteboard: std(0xfcfcfa, 0.22),
-    corkGrey: std(0xdfe2e0, 0.9),
+    corkGrey: matte(0xdfe2e0),
     brandGreen: std(BRAND.cbreGreen, 0.55),
     brandTrim: std(BRAND.sage, 0.5),
     stoolSeat: std(0x3c4547, 0.6),
-    paper: std(0xfbfbf8, 0.95),
-    safetyYellow: std(0xf2c200, 0.6),
-    floorDecal: std(0x5c6567, 0.7),
+    paper: matte(0xfbfbf8, 1.0),
+    safetyYellow: matte(0xf2c200, 1.0),
+    floorDecal: matte(0x5c6567),
     perspex: new THREE.MeshStandardMaterial({
       color: 0xe9f3f3,
       roughness: 0.05,
