@@ -129,7 +129,7 @@ export class PendantPanel {
   update(dt: number) {
     this.clock += dt;
     const ctl = this.ctl, r = ctl.robot;
-    setText(this.t.mode, MODE_LABEL[ctl.mode]);
+    setText(this.t.mode, ctl.demoLoop ? 'LOCAL · DEMO LOOP' : MODE_LABEL[ctl.mode]);
     const rotatable = ctl.jogMode === 'frame' || ctl.jogMode === 'tool';
     setText(this.t.jog, JOG_LABEL[ctl.jogMode] + (rotatable ? (ctl.rotation ? ' · R' : ' · T') : ''));
     setText(this.t.speed, `${Math.round(ctl.speedOverride * 100)}%`);

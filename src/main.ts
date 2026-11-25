@@ -19,7 +19,7 @@ import { DesktopInput } from './input/desktopInput';
 import { createHud } from './ui/hud';
 import { createCellView } from './scene/cellView';
 import { bindPersistence, exportCell, importCell } from './core/persistence';
-import { loadDemo } from './core/cell/demo';
+import { loadDemo, DemoLoop } from './core/cell/demo';
 import { Challenges } from './core/challenges';
 import { CellAudio } from './fx/audio';
 import { MAX_SPEED_RAD } from './config/robotSpec';
@@ -76,7 +76,13 @@ const xr = setupXR(renderer, scene, camera, vrButton);
 const perf = new PerfHud(document.getElementById('perf')!, camera);
 bindPersistence(ctl);
 // ?demo: preload correctly taught points and the reference transfer program.
-if (new URLSearchParams(location.search).has('demo')) loadDemo(ctl);
+const params = new URLSearchParams(location.search);
+let demoLoop: DemoLoop | null = null;
+if (params.get('demo') === 'loop') {
+  // Unattended loop: ?demo=loop[&speed=50]
+  const pct = Number(params.get('speed') ?? 50);
+  demoLoop = new DemoLoop(ctl, Math.min(1, Math.max(0.05, (Number.isFinite(pct) ? pct : 50) / 100)));
+} else if (params.has('demo')) loadDemo(ctl);
 const logic = new PendantLogic(ctl, {
   recordPoint: () => ctl.recordPoint(),
   moveToPoint: (held) => ctl.moveToPoint(held),
@@ -92,6 +98,17 @@ const hud = createHud({
   board: { exportCell: () => exportCell(ctl), importCell: () => { void importCell(ctl); }, loadExample: () => loadDemo(ctl) },
   challenges, audio,
 });
+
+if (demoLoop) {
+  // Unattended: no tutorial callout (not saved, so the learner's setting is kept),
+  // and on desktop a slow orbit around the cell.
+  hud.tutorial.enabled = false;
+  desktop.go('overview');
+  desktop.controls.object.position.set(-1.9, 1.95, 1.7); // start from the left, clear of the program screen
+  desktop.controls.autoRotate = true;
+  desktop.controls.autoRotateSpeed = 0.35;
+  desktop.controls.target.set(0, 1.0, -0.3);
+}
 
 // Desktop shortcuts for panel keys (the same actions are on the pendant panel).
 window.addEventListener('keydown', (e) => {
@@ -174,6 +191,7 @@ renderer.setAnimationLoop(() => {
   rig.update(robot.q, robot.gripper.halfGap);
   cellView.update(dt, camera);
   challenges.update(dt);
+  demoLoop?.update(dt);
   audio.update({
     camera: xr.isPresenting() ? renderer.xr.getCamera() : camera,
     robotPos: audioPos.robot, jointSpeed: jointSpeedFraction(),

@@ -14,6 +14,26 @@ The example points and program earn **no challenge credit**. Challenges 5–7 ne
 
 Every push to `main` rebuilds and redeploys via GitHub Actions (`.github/workflows/deploy.yml`).
 
+## Demo loop (unattended)
+
+**https://jammydav.github.io/VR_Robot_Training/?demo=loop** runs the plate transfer continuously:
+1. Dispense a plate.
+2. Move it from the dispenser to the reader tray.
+3. Retract the tray and read the plate.
+4. Extend the tray.
+5. Bring the plate back to the dispenser nest.
+6. Repeat.
+
+The gripper opens and closes at both instruments, and the reader tray opens and closes every cycle.
+
+- **No enabling device needed.** The loop runs the built-in, known-good program in **Local** mode, and the program is treated as validated. This is a demo-only exception to the training rule that a program must first pass a Manual test run.
+- **Speed.** The default is 50 %. Add `&speed=100` (any value from 5 to 100) to change it, e.g. `?demo=loop&speed=100`. SPEED − and SPEED + on the pendant also work while it runs.
+- **Self-recovering.** If a fault ever occurs, the loop resets the cell after 1.5 s and starts again.
+- **Stopping.** Press **ABORT** (on the pendant or the screen), or the **E-STOP**, to end the loop. To leave demo mode, load the address without `?demo=loop`.
+- **On desktop** the camera orbits the cell slowly. The tutorial callout is hidden in this mode, though your own tutorial setting is kept.
+- **No credit.** The demo uses the example points and program, so it never ticks whiteboard challenges.
+- **Saved work.** Like `?demo`, it replaces your saved points and program on that device.
+
 ## Setup
 
 Requires Node 20+ (developed on Node 24).

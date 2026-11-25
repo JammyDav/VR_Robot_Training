@@ -258,6 +258,11 @@ export class Controller {
   }
   get validated() { return this.validatedHash !== null && this.validatedHash === this.programHash(); }
 
+  /** Unattended demo loop (?demo=loop): the built-in program runs in Local without the enabling device. */
+  demoLoop = false;
+  /** Demo only: treat the current (built-in, known-good) program as validated. */
+  validateForDemo() { this.validatedHash = this.programHash(); this.events.emit('validated', { ok: true }); }
+
   private programMayMove() {
     if (this.estop || this.fault) return false;
     if (this.mode === 'test') return this.enable === 'enabled';

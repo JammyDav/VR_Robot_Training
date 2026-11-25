@@ -84,3 +84,87 @@ export function loadDemo(ctl: Controller) {
   ctl.robot.setJoints(pts.pSafe);
   ctl.points.selected = 0;
 }
+
+/**
+ * Demo loop: dispenser → reader → read → back to the dispenser, forever.
+ * Vertical approach and departure at both nests, folding through pSafe.
+ * "Dispense" only presents a plate when the nest is empty, so after the first
+ * cycle the same plate shuttles back and forth.
+ */
+export const DEMO_LOOP_PROGRAM: StepSpec[] = [
+  ['movej', { point: 'pSafe' }],
+  ['dispense'],
+  ['trayOut'],
+  // Dispenser → reader.
+  ['appro', { point: 'pDispenser', offset: 100, motion: 'J' }],
+  ['movel', { point: 'pDispenser' }],
+  ['close'],
+  ['appro', { point: 'pDispenser', offset: 100, motion: 'L' }],
+  ['movej', { point: 'pSafe' }],
+  ['appro', { point: 'pReader', offset: 100, motion: 'J' }],
+  ['movel', { point: 'pReader' }],
+  ['open'],
+  ['appro', { point: 'pReader', offset: 100, motion: 'L' }],
+  ['movej', { point: 'pSafe' }],
+  ['trayIn'],
+  ['waitRead'],
+  // Reader → dispenser.
+  ['trayOut'],
+  ['appro', { point: 'pReader', offset: 100, motion: 'J' }],
+  ['movel', { point: 'pReader' }],
+  ['close'],
+  ['appro', { point: 'pReader', offset: 100, motion: 'L' }],
+  ['movej', { point: 'pSafe' }],
+  ['appro', { point: 'pDispenser', offset: 100, motion: 'J' }],
+  ['movel', { point: 'pDispenser' }],
+  ['open'],
+  ['appro', { point: 'pDispenser', offset: 100, motion: 'L' }],
+  ['movej', { point: 'pSafe' }],
+  ['trayIn'],
+];
+
+/**
+ * Unattended attract / demo mode. Loads the reference points and the loop
+ * program, switches to Local, treats the built-in program as validated (so no
+ * enabling device is needed), and restarts it after every cycle. If anything
+ * faults it resets the cell and starts again after a short pause.
+ * Stop it with ABORT or the E-stop; reload the page without ?demo=loop to leave it.
+ */
+export class DemoLoop {
+  private wait = 1.5;
+  private stopped = false;
+
+  constructor(private ctl: Controller, speed = 0.5) {
+    loadDemo(ctl);
+    ctl.program.loadingExample = true;
+    loadProgram(ctl, DEMO_LOOP_PROGRAM);
+    ctl.program.loadingExample = false;
+    ctl.program.fromExample = true;
+    ctl.cell.reset();
+    ctl.setMode('local');
+    ctl.speedOverride = speed;
+    ctl.validateForDemo();
+    ctl.demoLoop = true;
+    // A deliberate ABORT or E-stop ends the loop (the operator took over).
+    ctl.runner.events.on('state', (e) => { if (e.state === 'aborted' && !ctl.estop) this.stopped = true; });
+    ctl.events.on('estop', (e) => { if (e.active) this.stopped = true; });
+  }
+
+  update(dt: number) {
+    const c = this.ctl;
+    if (this.stopped) { c.demoLoop = false; return; }
+    if (c.runner.active) return;
+    this.wait -= dt;
+    if (this.wait > 0) return;
+    if (c.fault) {
+      // Unattended recovery: clear the fault, put the cell and arm back, go again.
+      c.reset();
+      c.cell.reset();
+      c.robot.setJoints(c.points.get('pSafe')!.q);
+    }
+    if (c.mode !== 'local') c.setMode('local');
+    if (!c.validated) c.validateForDemo();
+    c.runProgram();
+    this.wait = 1.5;
+  }
+}
